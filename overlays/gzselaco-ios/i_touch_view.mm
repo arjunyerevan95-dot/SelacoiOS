@@ -23,7 +23,7 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
   for(int i=0;i<8;i++)[_layout addObject:[@{@"x":@(defaults[i][0]),@"y":@(defaults[i][1]),@"size":@(defaults[i][2]),@"opacity":@.72} mutableCopy]];
   _settings=[@{@"swipe":@3,@"gyroGain":@3,@"gyro":@NO} mutableCopy];
   NSDictionary *saved=[NSUserDefaults.standardUserDefaults dictionaryForKey:@"SelacoTouch.v1"];
-  if([saved[@"layout"] isKindOfClass:NSArray.class]&&[saved[@"layout"] count]==8){for(int i=0;i<8;i++){NSDictionary*d=saved[@"layout"][i];for(NSString*k in @[@"x",@"y",@"size",@"opacity"])if([d[k] isKindOfClass:NSNumber.class])_layout[i][k]=d[k];}}
+  if([saved[@"layout"] isKindOfClass:NSArray.class]&&[saved[@"layout"] count]==8){for(int i=0;i<8;i++){NSDictionary*d=saved[@"layout"][i];if(![d isKindOfClass:NSDictionary.class])continue;for(NSString*k in @[@"x",@"y",@"size",@"opacity"])if([d[k] isKindOfClass:NSNumber.class])_layout[i][k]=d[k];}}
   for(NSString*k in @[@"swipe",@"gyroGain",@"gyro"])if([saved[k] isKindOfClass:NSNumber.class])_settings[k]=saved[k];
   _motion=[CMMotionManager new];_motion.deviceMotionUpdateInterval=1./120.;
   _link=[CADisplayLink displayLinkWithTarget:self selector:@selector(tick:)];[_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -41,14 +41,14 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
 - (void)resume:(NSNotification*)n{_suspended=false;_last=0;[self reset];}
 - (void)tick:(CADisplayLink*)link {
  bool menu=SelacoTouchMenu();UIInterfaceOrientation orientation=self.window.windowScene.interfaceOrientation;
- if(menu!=_menu||orientation!=_orientation){[self reset];_menu=menu;_orientation=orientation;_last=0;}
+ if(menu!=_menu||orientation!=_orientation){[self reset];_menu=menu;_orientation=orientation;_last=0;_biasX=_biasY=0;}
  double now=CACurrentMediaTime(),dt=_last?fmin(.05,now-_last):0;_last=now;
  BOOL active=!_menu&&!_suspended&&!_editing&&!_panel&&!_radial&&[_settings[@"gyro"] boolValue];
  if(active&&_motion.deviceMotionAvailable&&!_motion.deviceMotionActive)[_motion startDeviceMotionUpdates];
  if(!active&&_motion.deviceMotionActive)[_motion stopDeviceMotionUpdates];
  CMDeviceMotion*m=_motion.deviceMotion;
  if(active&&m&&fabs(NSProcessInfo.processInfo.systemUptime-m.timestamp)<.15){
-  double sign=orientation==UIInterfaceOrientationLandscapeLeft?-1:1;
+  double sign=orientation==UIInterfaceOrientationLandscapeRight?-1:1;
   double x=-m.rotationRate.x*sign,y=m.rotationRate.y*sign;
   if(_calUntil>now){_sumX+=x;_sumY+=y;_samples++;}
   else {if(_calUntil){if(_samples){_biasX=_sumX/_samples;_biasY=_sumY/_samples;}_calUntil=0;}
@@ -56,7 +56,7 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
    SelacoTouchLook((x-_biasX)*dt*gain,(y-_biasY)*dt*gain);
   }
  }
- for(NSValue*k in [_touches.allKeys copy]){NSMutableDictionary*d=_touches[k];if([d[@"role"] intValue]==4&&!_radial&&now-[d[@"start"] doubleValue]>.35){_radial=1;[self setNeedsDisplay];}}
+ if(!_editing&&!_menu&&!_panel)for(NSValue*k in [_touches.allKeys copy]){NSMutableDictionary*d=_touches[k];if([d[@"role"] intValue]==4&&!_radial&&now-[d[@"start"] doubleValue]>.35){_radial=1;[self setNeedsDisplay];}}
  [self setNeedsDisplay];
 }
 - (void)circle:(CGPoint)c radius:(double)r text:(NSString*)text opacity:(double)alpha selected:(BOOL)selected {
@@ -103,7 +103,7 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
 - (void)touchesEnded:(NSSet<UITouch*>*)ts withEvent:(UIEvent*)event {
  for(UITouch*t in ts){NSValue*k=[NSValue valueWithNonretainedObject:t];NSMutableDictionary*d=_touches[k];if(!d)continue;int role=[d[@"role"] intValue];CGPoint p=[t locationInView:self];
   if(_editing){[self save];}
-  else {if(role>=0&&keys[role]>=0)SelacoTouchKey(keys[role],false);
+  else {if(role>=0&&keys[role]>=0){BOOL another=NO;for(NSValue*other in _touches)if(![other isEqual:k]&&[_touches[other][@"role"] intValue]==role)another=YES;if(!another)SelacoTouchKey(keys[role],false);}
    if(role==-4){_moveTouch=nil;SelacoTouchMove(0,0);}
    if(role==6&&[self button:p]==6){_settings[@"gyro"]=@(![_settings[@"gyro"] boolValue]);[self save];}
    if((role==4&&_radial)||role==-5)[self radialSelect:p];else if(role==4&&[self button:p]==4)SelacoTouchPulse(0x198);

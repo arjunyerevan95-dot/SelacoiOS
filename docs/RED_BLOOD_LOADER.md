@@ -20,6 +20,6 @@ Complete patched public engine materializes locally; six generated-source
 contract tests pass via `tests/test_red_blood_loader.py ENGINE_ROOT`. They are
 source checks, not Apple compilation or device runtime proof.
 
-Build is on hold pending user review of touch/gyro layout designs. No second
-Mac build has been launched. Do not publish modified workflow merely to test this
-loader: publication would trigger an expensive build on the candidate branch.
+The user approved the compact touch/gyro design before the integrated build.
+The first controls compile is not a final delivery; gyro orientation was corrected
+against the New Vegas reference during review and must be in the delivered build.

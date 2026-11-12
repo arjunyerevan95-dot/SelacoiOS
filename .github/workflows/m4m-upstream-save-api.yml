@@ -51,7 +51,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.1(21)"
+            echo "bundle_version=0.9.2(22)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=touch_gyro_red_blood_no_write"
             echo "job_id_available_after_run=true"

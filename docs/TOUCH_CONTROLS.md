@@ -1,6 +1,6 @@
 # Approved compact New Vegas-inspired Selaco touch layout
 
-Build21 integrates the approved upper/mid-right cluster: Jump, Alt, Reload, Dash,
+Build22 integrates the approved upper/mid-right cluster: Jump, Alt, Reload, Dash,
 Wheel, Use and large adjacent Gyro/Fire. Lower-right and central space remain
 available for relative swipe aiming. Left-side movement floats from touch origin,
 hides on release and returns to neutral. Dragging Fire continues aiming while held;
