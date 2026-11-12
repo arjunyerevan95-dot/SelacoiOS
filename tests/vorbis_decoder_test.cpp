@@ -8,6 +8,9 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#ifdef SELACO_TEST_OPENAL
+#include "vorbis_openal_integration.h"
+#endif
 extern SoundDecoder *SelacoCreateVorbisDecoder(MusicIO::FileInterface *);
 struct TrackedReader : MusicIO::MemoryReader {
     bool &closed;
@@ -27,14 +30,17 @@ int main(int argc, char **argv) {
         int rate; ChannelConfig config; SampleType type;
         d->getInfo(&rate, &config, &type);
         assert(rate == 48000 && config == (channels == 1 ? ChannelConfig_Mono : ChannelConfig_Stereo));
-        assert(type == SampleType_Float32 && d->getSampleLength() == 48000);
-        auto decoded = d->readAll(); assert(decoded.size() == 48000 * channels * sizeof(float));
+        assert(type == SampleType_Int16 && d->getSampleLength() == 48000);
+        auto decoded = d->readAll(); assert(decoded.size() == 48000 * channels * sizeof(int16_t));
+        #ifdef SELACO_TEST_OPENAL
+        VerifyEngineOutput(decoded,config,type,rate);
+        #endif
         double energy = 0;
-        for (size_t i = 0; i < decoded.size(); i += sizeof(float)) {
-            float f; std::memcpy(&f, decoded.data()+i, sizeof(f)); assert(std::isfinite(f)); energy += f*f;
+        for (size_t i = 0; i < decoded.size(); i += sizeof(int16_t)) {
+            int16_t f; std::memcpy(&f, decoded.data()+i, sizeof(f)); energy += double(f)*f/(32768.*32768.);
         }
         assert(energy > 1 && d->getSampleOffset() == 48000);
-        const size_t frameBytes = channels * sizeof(float);
+        const size_t frameBytes = channels * sizeof(int16_t);
         std::vector<char> block(256 * frameBytes);
         assert(d->seek(100, true, true) && d->getSampleOffset() == 4800);
         assert(d->read(block.data(), block.size()) == block.size());
@@ -53,9 +59,10 @@ int main(int argc, char **argv) {
         closed = false;
         std::unique_ptr<StreamSource> song(SndFile_OpenSong(new TrackedReader(bytes, closed)));
         assert(song && !closed); song->SetPlayMode(true);
-        std::vector<float> music(48000 * channels * 3);
-        assert(song->GetData(music.data(), music.size()*sizeof(float)));
-        double sum=0; for (float f:music) { assert(std::isfinite(f)); sum += f*f; } assert(sum>1);
+        auto fmt=song->GetFormatEx(); assert(fmt.mSampleType==SampleType_Int16);
+        std::vector<int16_t> music(48000 * channels * 3);
+        assert(song->GetData(music.data(), music.size()*sizeof(int16_t)));
+        double sum=0; for (int16_t f:music) { sum += double(f)*f/(32768.*32768.); } assert(sum>1);
         song.reset(); assert(closed);
     }
     // Failed opens must restore position and retain caller ownership.

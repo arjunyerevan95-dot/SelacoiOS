@@ -107,6 +107,8 @@ new = (
     "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-resolution-launcher.py\" "
     "\"${source_dir}\"\\n'\n"
     "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-scene-scale.py\" "
+    "\"${source_dir}\"\\n'\n"
+    "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-present-lifetime.py\" "
     "\"${source_dir}\"\\n',\n"
 )
 if text.count(old) != 1:

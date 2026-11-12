@@ -23,7 +23,7 @@ patcher preserves its complete MIT/Unlicense text. The isolated generated copy:
   matching ZMusic's public `ChannelConfig` API.
 
 The new bridge registers before optional codecs in `SoundDecoder::CreateDecoder`.
-It supplies float PCM, length, frame offset and sample/millisecond seek. Reader
+It supplies signed 16-bit PCM, length, frame offset and sample/millisecond seek. Reader
 ownership transfers only on successful open; failed probes restore position and
 leave ownership with the caller. The compressed resource is capped at 64 MiB;
 PCM is decoded incrementally with a fixed 16 KiB scratch buffer, not a full-song
@@ -49,7 +49,7 @@ factory and upstream `SndFile_OpenSong` implementation, without libsndfile or
 mpg123. Mono and stereo one-second 48 kHz Vorbis tones include loop tags.
 
 Passed:
-- nonzero finite float PCM, exact frame count and EOF;
+- nonzero signed 16-bit PCM, exact frame count and EOF;
 - millisecond seek and repeated exact sample seeks, byte-identical to baseline;
 - three seconds of actual upstream music-loop output from a one-second file;
 - failed-probe reader ownership and position, including nonzero starting position;
@@ -72,3 +72,6 @@ unsupported ancient floor-0 Vorbis and chained streams; files above 64 MiB and
 multichannel audio are rejected rather than silently misdecoded. Other optional
 backends may handle formats they already support. Existing compressed-data
 fixtures are not included in this repository; tests generate their own tones.
+
+## Build24 device regression and correction
+USB log showed repeated unsupported mono/stereo sample type during game sound loading. Decoder Float32 was valid for the streaming API but unsupported by pinned Selaco LoadSound, which accepts UInt8/Int16. Decoder now produces Int16 via stb conversion, retaining music seek/loop support. Integration test extracts the actual engine format-selector block and feeds mono/stereo decoded PCM through static OpenAL loopback; nonzero output and no AL error required. Earlier decoder-only tests missed this consumer contract. On-device fix remains unverified until next IPA.

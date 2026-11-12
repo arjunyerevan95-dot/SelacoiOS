@@ -1,5 +1,5 @@
-name: Selaco Native HUD Vorbis and Custom Controls
-# Build24: static Vorbis, native-HUD scene scale, complete configurable controls.
+name: Selaco SFX PCM and Presentation Lifetime
+# Build25: Int16 Vorbis SFX consumer contract and per-image presentation synchronization.
 
 on:
   workflow_dispatch:
@@ -55,7 +55,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.4(24)"
+            echo "bundle_version=0.9.5(25)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=scene_scale_native_hud_vorbis_custom_controls_isolated_saves"
             echo "job_id_available_after_run=true"

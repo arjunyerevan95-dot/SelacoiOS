@@ -19,14 +19,14 @@ class Pipeline(unittest.TestCase):
     self.assertLess(config.index('patch-gzselaco-touch-ios.py'),config.index('patch-gzselaco-audio-candidate.py'))
     self.assertIn('"${audio_cmake_args[@]}"',config)
     transform(REPO/'scripts/m4-title-menu-app-artifact-probe.sh',REPO/'scripts/m4-engine-init-app-artifact-probe.sh',d/'app.sh',env)
-    app=(d/'app.sh').read_text();version='24' if enabled=='1' else '22'
+    app=(d/'app.sh').read_text();version='25' if enabled=='1' else '22'
     self.assertIn(f'"CFBundleVersion": "{version}"',app)
     self.assertIn('OPENAL-LICENSE.txt',app); self.assertIn('STB-VORBIS-LICENSE.txt',app)
  def test_opt_in_source_patches(self):
   base=REPO/'.codebase-memory-worktree/GZSelaco-controls-final'
   with tempfile.TemporaryDirectory() as d:
    root=Path(d)
-   for rel in ['src/g_game.cpp','src/common/menu/savegamemanager.cpp','src/CMakeLists.txt','src/common/platform/ios/i_platform_runtime.mm','src/common/platform/ios/i_title_menu_closure.cpp']:
+   for rel in ['src/g_game.cpp','src/common/menu/savegamemanager.cpp','src/CMakeLists.txt','src/common/audio/sound/oalsound.cpp','src/common/audio/sound/s_sound.cpp','src/common/platform/ios/i_platform_runtime.mm','src/common/platform/ios/i_title_menu_closure.cpp']:
     p=root/rel;p.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(base/rel,p)
    for script in ['patch-gzselaco-resolution-launcher.py','patch-gzselaco-audio-candidate.py','patch-gzselaco-atomic-save-candidate.py']:
     subprocess.run(['python3',str(REPO/'scripts'/script),d],check=True)

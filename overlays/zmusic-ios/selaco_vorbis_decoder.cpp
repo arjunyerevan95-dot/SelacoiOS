@@ -60,16 +60,16 @@ public:
     void getInfo(int *sr, ChannelConfig *ch, SampleType *ty) override {
         if (sr) *sr = static_cast<int>(rate);
         if (ch) *ch = channels == 1 ? ChannelConfig_Mono : ChannelConfig_Stereo;
-        if (ty) *ty = SampleType_Float32;
+        if (ty) *ty = SampleType_Int16;
     }
     size_t read(char *buffer, size_t bytes) override {
         if (!buffer || !stream) return 0;
-        const size_t frameBytes = channels * sizeof(float);
+        const size_t frameBytes = channels * sizeof(short);
         size_t requested = bytes / frameBytes, written = 0;
-        float block[4096];
+        short block[8192];
         while (requested) {
-            const int count = static_cast<int>(std::min<size_t>(requested, 4096 / channels));
-            const int got = selaco_stb_vorbis_get_samples_float_interleaved(stream, channels, block, count * channels);
+            const int count = static_cast<int>(std::min<size_t>(requested, 8192 / channels));
+            const int got = selaco_stb_vorbis_get_samples_short_interleaved(stream, channels, block, count * channels);
             if (got <= 0) break;
             const size_t amount = static_cast<size_t>(got) * frameBytes;
             std::memcpy(buffer + written, block, amount);

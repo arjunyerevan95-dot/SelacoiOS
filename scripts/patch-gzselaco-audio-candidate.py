@@ -21,3 +21,6 @@ for flag in ['-nosound','-nomusic']:
 p.write_text(s)
 p=ios/'i_title_menu_closure.cpp';s=p.read_text();s='extern "C" void SelacoAudioDrain();\n'+s
 old='    SelacoTouchDrain();';assert s.count(old)==1;s=s.replace(old,old+'\n    SelacoAudioDrain();');p.write_text(s)
+
+import subprocess
+subprocess.run([sys.executable,str(repo/"scripts/patch-gzselaco-audio-diagnostics.py"),str(root)],check=True)
