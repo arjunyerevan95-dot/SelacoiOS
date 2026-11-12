@@ -1,5 +1,5 @@
 name: Selaco Scaled Rendering Audio and Saves
-# Build23 retry: corrected lipo archive verification argument ordering.
+# Build23 retry: engine expects al.h directly under OpenAL include root.
 
 on:
   workflow_dispatch:

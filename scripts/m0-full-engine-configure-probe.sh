@@ -176,7 +176,7 @@ if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
   python3 "${repo_root}/scripts/patch-gzselaco-audio-candidate.py" "${source_dir}"
   audio_root="${repo_root}/build/artifacts/openal-ios-candidate"
   audio_cmake_args=(-DNO_OPENAL=OFF -DDYN_OPENAL=OFF
-    "-DOPENAL_INCLUDE_DIR=${audio_root}/include" "-DOPENAL_LIBRARY=${audio_root}/libopenal.a")
+    "-DOPENAL_INCLUDE_DIR=${audio_root}/include/AL" "-DOPENAL_LIBRARY=${audio_root}/libopenal.a")
 fi
 if [[ "${SELACO_IOS_SAVES_CANDIDATE:-0}" == 1 ]]; then
   python3 "${repo_root}/scripts/patch-gzselaco-atomic-save-candidate.py" "${source_dir}"
