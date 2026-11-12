@@ -92,6 +92,37 @@ def main() -> int:
         "exclude the macOS CoreMIDI hardware backend from iOS",
     )
 
+    # Reuse the exact pinned, licensed stb implementation already in ZMusic.
+    # libxmp's wrapper disables seeking and changes symbol names; this isolated
+    # copy retains normal stb symbols and full pull/seek APIs for music loops.
+    decoder_source = pathlib.Path(__file__).resolve().parent.parent / "overlays" / "zmusic-ios" / "selaco_vorbis_decoder.cpp"
+    shutil.copyfile(decoder_source, root / "source" / "decoder" / "selaco_vorbis_decoder.cpp")
+    bundled_vorbis = root / "thirdparty" / "libxmp" / "src" / "loaders" / "vorbis.c"
+    vorbis = bundled_vorbis.read_text(encoding="utf-8")
+    wrapper = '#define STB_VORBIS_C\n#include "vorbis.h"\n'
+    if vorbis.count(wrapper) != 1:
+        raise RuntimeError("pinned libxmp stb wrapper changed")
+    vorbis = vorbis.replace(wrapper, "", 1)
+    types = '/* libxmp-specific change */\n#if 1\n#include "../common.h"'
+    if vorbis.count(types) != 1:
+        raise RuntimeError("pinned libxmp type wrapper changed")
+    vorbis = vorbis.replace(types, '/* Use stb original integer types, not libxmp common.h. */\n#if 0\n#include "../common.h"', 1)
+    # Independent private symbol family, never collide with libxmp's decoder.
+    vorbis = vorbis.replace("stb_vorbis", "selaco_stb_vorbis")
+    (root / "source" / "decoder" / "selaco_stb_vorbis.c").write_text(vorbis, encoding="utf-8")
+    replace_once(source_cmake, "\tdecoder/sounddecoder.cpp\n",
+                 "\tdecoder/sounddecoder.cpp\n\tdecoder/selaco_vorbis_decoder.cpp\n",
+                 "compile static pinned Vorbis decoder")
+    factory = root / "source" / "decoder" / "sounddecoder.cpp"
+    replace_once(factory, 'SoundDecoder *SoundDecoder::CreateDecoder(MusicIO::FileInterface *reader)\n',
+                 'SoundDecoder *SelacoCreateVorbisDecoder(MusicIO::FileInterface *reader);\n\n'
+                 'SoundDecoder *SoundDecoder::CreateDecoder(MusicIO::FileInterface *reader)\n',
+                 "declare static Vorbis factory")
+    replace_once(factory, "    auto pos = reader->tell();\n",
+                 "    auto pos = reader->tell();\n"
+                 "    if (auto vorbis = SelacoCreateVorbisDecoder(reader)) return vorbis;\n",
+                 "select static Vorbis before optional codecs")
+
     stub_destination = root / "source" / "mididevices" / "music_fluidsynth_stub.cpp"
     shutil.copyfile(stub_source, stub_destination)
     return 0

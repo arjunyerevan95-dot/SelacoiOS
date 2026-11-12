@@ -62,13 +62,14 @@ for old, new in replacements.items():
     text = text.replace(old, new)
 
 if os.environ.get("SELACO_IOS_AUDIO_CANDIDATE") == "1" or os.environ.get("SELACO_IOS_SAVES_CANDIDATE") == "1":
-    text = text.replace('"0.9.2"', '"0.9.3"').replace('"22"', '"23"')
+    text = text.replace('"0.9.2"', '"0.9.4"').replace('"22"', '"24"')
 package_anchor = 'cp -R "${engine_init_app}" "${ipa_stage}/Payload/Selaco.app"\n'
 assert text.count(package_anchor) == 1
 text = text.replace(package_anchor, package_anchor + r'''if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
   cp "${repo_root}/build/artifacts/openal-ios-candidate/OPENAL-LICENSE.txt" "${ipa_stage}/Payload/Selaco.app/OPENAL-LICENSE.txt"
   cp "${repo_root}/build/artifacts/openal-ios-candidate/FMT-LICENSE.txt" "${ipa_stage}/Payload/Selaco.app/FMT-LICENSE.txt"
   cp "${repo_root}/OPENAL_CANDIDATE_PIN.env" "${ipa_stage}/Payload/Selaco.app/OPENAL-SOURCE.txt"
+  cp "${repo_root}/overlays/zmusic-ios/STB-VORBIS-LICENSE.txt" "${ipa_stage}/Payload/Selaco.app/STB-VORBIS-LICENSE.txt"
 fi
 ''')
 

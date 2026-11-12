@@ -1,5 +1,5 @@
-name: Selaco Scaled Rendering Audio and Saves
-# Build23 retry: engine expects al.h directly under OpenAL include root.
+name: Selaco Native HUD Vorbis and Custom Controls
+# Build24: static Vorbis, native-HUD scene scale, complete configurable controls.
 
 on:
   workflow_dispatch:
@@ -55,9 +55,9 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.3(23)"
+            echo "bundle_version=0.9.4(24)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
-            echo "diagnostic_scope=scaled_render_audio_isolated_atomic_saves"
+            echo "diagnostic_scope=scene_scale_native_hud_vorbis_custom_controls_isolated_saves"
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 

@@ -19,9 +19,9 @@ class Pipeline(unittest.TestCase):
     self.assertLess(config.index('patch-gzselaco-touch-ios.py'),config.index('patch-gzselaco-audio-candidate.py'))
     self.assertIn('"${audio_cmake_args[@]}"',config)
     transform(REPO/'scripts/m4-title-menu-app-artifact-probe.sh',REPO/'scripts/m4-engine-init-app-artifact-probe.sh',d/'app.sh',env)
-    app=(d/'app.sh').read_text();version='23' if enabled=='1' else '22'
+    app=(d/'app.sh').read_text();version='24' if enabled=='1' else '22'
     self.assertIn(f'"CFBundleVersion": "{version}"',app)
-    self.assertIn('OPENAL-LICENSE.txt',app)
+    self.assertIn('OPENAL-LICENSE.txt',app); self.assertIn('STB-VORBIS-LICENSE.txt',app)
  def test_opt_in_source_patches(self):
   base=REPO/'.codebase-memory-worktree/GZSelaco-controls-final'
   with tempfile.TemporaryDirectory() as d:
@@ -31,7 +31,8 @@ class Pipeline(unittest.TestCase):
    for script in ['patch-gzselaco-resolution-launcher.py','patch-gzselaco-audio-candidate.py','patch-gzselaco-atomic-save-candidate.py']:
     subprocess.run(['python3',str(REPO/'scripts'/script),d],check=True)
    runtime=(root/'src/common/platform/ios/i_platform_runtime.mm').read_text()
-   self.assertIn('SelacoIOS::RenderPixels',runtime);self.assertIn('self.renderScale = .5',runtime);self.assertIn('self.renderScale = .33',runtime);self.assertIn('Savegames-candidate',runtime);self.assertNotIn('"-nosound"',runtime)
+   self.assertNotIn('SelacoIOS::RenderPixels',runtime);self.assertIn('SELACO_IOS_SCENE_SCALE',runtime);self.assertIn('self.renderScale = .5',runtime);self.assertIn('self.renderScale = .33',runtime);self.assertIn('Savegames-candidate',runtime);self.assertNotIn('"-nosound"',runtime)
+   self.assertIn('DocumentsPath("Savegames-candidate", true) + "/"',runtime)
    self.assertNotIn('WriteZip(filename.GetChars()', (root/'src/g_game.cpp').read_text())
    self.assertIn('"-nosound"',(base/'src/common/platform/ios/i_platform_runtime.mm').read_text())
 if __name__=='__main__':unittest.main()

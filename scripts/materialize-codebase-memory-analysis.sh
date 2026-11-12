@@ -58,6 +58,7 @@ python3 "${repo_root}/scripts/patch-gzselaco-saveguard-ios-m4m.py" "${engine_roo
 
 python3 "${repo_root}/scripts/patch-gzselaco-touch-ios.py" "${engine_root}"
 python3 "${repo_root}/scripts/patch-gzselaco-resolution-launcher.py" "${engine_root}"
+python3 "${repo_root}/scripts/patch-gzselaco-scene-scale.py" "${engine_root}"
 if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
   python3 "${repo_root}/scripts/patch-gzselaco-audio-candidate.py" "${engine_root}"
 fi

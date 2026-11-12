@@ -10,7 +10,7 @@ void SelacoTouchLook(double x,double y){if(!std::isfinite(x)||!std::isfinite(y))
 void SelacoTouchMove(double f,double s){std::lock_guard<std::mutex> l(selacoTouch.mutex);selacoTouch.forward=std::isfinite(f)?std::max(-1.,std::min(1.,f)):0;selacoTouch.side=std::isfinite(s)?std::max(-1.,std::min(1.,s)):0;}
 void SelacoTouchReset(){std::lock_guard<std::mutex> l(selacoTouch.mutex);selacoTouch.clear();}
 bool SelacoTouchMenu(){std::lock_guard<std::mutex> l(selacoTouch.mutex);return selacoTouch.menu;}
-static int guiKey(int k){switch(k){case KEY_UPARROW:return GK_UP;case KEY_DOWNARROW:return GK_DOWN;case KEY_LEFTARROW:return GK_LEFT;case KEY_RIGHTARROW:return GK_RIGHT;case KEY_ENTER:return GK_RETURN;case KEY_ESCAPE:return 27;default:return 0;}}
+static int guiKey(int k){switch(k){case KEY_UPARROW:return GK_UP;case KEY_DOWNARROW:return GK_DOWN;case KEY_LEFTARROW:return GK_LEFT;case KEY_RIGHTARROW:return GK_RIGHT;case KEY_ENTER:return GK_RETURN;case KEY_ESCAPE:case 0x0f:case 0x3a:return 27;default:return 0;}}
 static void post(int k,bool down,bool menu){event_t e{};if(menu){int g=guiKey(k);if(!g)return;e.type=EV_GUI_Event;e.subtype=down?EV_GUI_KeyDown:EV_GUI_KeyUp;e.data1=g;e.data2=g;}else{e.type=down?EV_KeyDown:EV_KeyUp;e.data1=k;}D_PostEvent(&e);}
 void SelacoTouchDrain(){
  static bool sent[512]{};static bool previousMenu=true;
@@ -24,7 +24,7 @@ void SelacoTouchDrain(){
  }
  if(mode!=previousMenu){for(int k=0;k<512;k++)if(sent[k]){post(k,false,previousMenu);sent[k]=false;}previousMenu=mode;}
  for(int k=0;k<512;k++)if(sent[k]!=keys[k]){post(k,keys[k],mode);sent[k]=keys[k];}
- for(int k:pulses){if(!sent[k]){post(k,true,mode);post(k,false,mode);}}
+ for(int k:pulses){if(!sent[k]){post(k,true,mode);if(mode)post(k,false,mode);else sent[k]=true;}} // Gameplay pulses live for one engine tic, including held-action aliases.
  if(!mode&&(x||y))PostMouseMove(x,y);
 }
 void SelacoTouchAxes(float *axes){std::lock_guard<std::mutex> l(selacoTouch.mutex);if(!selacoTouch.menu){axes[JOYAXIS_Forward]=(float)selacoTouch.forward;axes[JOYAXIS_Side]=(float)selacoTouch.side;}}

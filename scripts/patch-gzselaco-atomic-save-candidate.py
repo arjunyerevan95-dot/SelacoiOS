@@ -42,7 +42,7 @@ print('Atomic save candidate staged; engine ZIP-open validation is NOT a device 
 p=root/'src/common/platform/ios/i_platform_runtime.mm'
 s=p.read_text();old='return DocumentsPath("Savegames", true);'
 assert s.count(old)==1
-p.write_text(s.replace(old,'return DocumentsPath("Savegames-candidate", true);'))
+p.write_text(s.replace(old,'return DocumentsPath("Savegames-candidate", true) + "/";'))
 
 s=p.read_text();anchor='        // Optional, exact allowlisted private mod only. Never enumerate Mods.'
 assert s.count(anchor)==1

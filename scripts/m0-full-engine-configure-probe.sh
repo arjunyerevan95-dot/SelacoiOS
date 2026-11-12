@@ -143,6 +143,13 @@ if [[ -z "${zmusic_library}" || ! -f "${zmusic_library}" ]]; then
   exit 1
 fi
 
+# Fail before the expensive engine build if static Vorbis was omitted.
+nm -g "${zmusic_library}" > "${evidence_dir}/zmusic-symbols.txt"
+if ! grep -Eq '[[:space:]]T[[:space:]]_?selaco_stb_vorbis_open_memory$' "${evidence_dir}/zmusic-symbols.txt"; then
+  echo "error: pinned static Vorbis decoder is missing from libzmusic.a" >&2
+  exit 1
+fi
+
 printf '== Build pinned decoder-only libvpx dependency ==\n'
 bash "${libvpx_probe}"
 vpx_library="${repo_root}/build/artifacts/m0-libvpx-ios/libvpx-ios-arm64.a"
