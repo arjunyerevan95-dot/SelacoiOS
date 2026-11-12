@@ -33,3 +33,9 @@ first device validation; no performance or full gameplay claim is made.
 Save writes remain intentionally blocked. The existing build also retains its
 silent probe audio configuration. Red-blood loading is an exact digest allowlist;
 no other mods or private game assets are included in the IPA/repository.
+
+
+Build23 changes: corrected gyro sign from user device feedback; per-axis
+inversion settings. Launch choice lowers actual drawable resolution to 0.5x
+(default) or 0.33x; controls remain full-size. Audio and isolated atomic saves
+are now enabled as experimental candidates, pending device validation.

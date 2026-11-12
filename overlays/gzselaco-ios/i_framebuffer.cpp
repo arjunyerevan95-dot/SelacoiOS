@@ -47,7 +47,8 @@ void SystemBaseFrameBuffer::ToggleFullscreen(bool yes)
 
 void SystemBaseFrameBuffer::SetWindowSize(int clientWidth, int clientHeight)
 {
-    SelacoIOSSetDrawableSize(clientWidth, clientHeight);
+    // UIKit owns scaled pixels; desktop/config requests must not restore native size.
+    (void)clientWidth; (void)clientHeight;
     SetSize(GetClientWidth(), GetClientHeight());
 }
 

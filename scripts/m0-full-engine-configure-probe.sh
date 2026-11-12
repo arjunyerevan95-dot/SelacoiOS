@@ -169,6 +169,19 @@ if [[ -z "${moltenvk_library}" || ! -f "${moltenvk_library}" || -z "${moltenvk_i
   exit 1
 fi
 
+# Explicit local/manual opt-in only. Default shipped probe remains silent/no-write.
+audio_cmake_args=(-DNO_OPENAL=ON)
+if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
+  bash "${repo_root}/scripts/build-openal-ios-candidate.sh"
+  python3 "${repo_root}/scripts/patch-gzselaco-audio-candidate.py" "${source_dir}"
+  audio_root="${repo_root}/build/artifacts/openal-ios-candidate"
+  audio_cmake_args=(-DNO_OPENAL=OFF -DDYN_OPENAL=OFF
+    "-DOPENAL_INCLUDE_DIR=${audio_root}/include" "-DOPENAL_LIBRARY=${audio_root}/libopenal.a")
+fi
+if [[ "${SELACO_IOS_SAVES_CANDIDATE:-0}" == 1 ]]; then
+  python3 "${repo_root}/scripts/patch-gzselaco-atomic-save-candidate.py" "${source_dir}"
+fi
+
 printf '== Configure full GZSelaco target for arm64 iPhoneOS ==\n'
 trap - ERR
 set +e
@@ -192,7 +205,7 @@ cmake \
   -DVPX_LIBRARIES="${vpx_library}" \
   -DMOLTENVK_LIBRARY="${moltenvk_library}" \
   -DMOLTENVK_INCLUDE_DIR="${moltenvk_include}" \
-  -DNO_OPENAL=ON \
+  "${audio_cmake_args[@]}" \
   -DHAVE_VULKAN=ON \
   -DHAVE_GLES2=OFF \
   -DVULKAN_USE_XLIB=OFF \

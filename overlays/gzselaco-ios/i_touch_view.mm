@@ -2,6 +2,7 @@
 #import <CoreMotion/CoreMotion.h>
 #import <QuartzCore/QuartzCore.h>
 #include "i_touch_input.h"
+#include "i_touch_math.h"
 #include <cmath>
 // Scan codes match Selaco's existing default keyboard bindings, not new gameplay commands.
 static const int keys[]={0x39,0x101,0x13,0x2a,-1,0x12,-2,0x100};
@@ -21,10 +22,10 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
   _owner=owner;self.multipleTouchEnabled=YES;self.backgroundColor=UIColor.clearColor;self.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
   _touches=[NSMutableDictionary new];_layout=[NSMutableArray new];_selected=7;
   for(int i=0;i<8;i++)[_layout addObject:[@{@"x":@(defaults[i][0]),@"y":@(defaults[i][1]),@"size":@(defaults[i][2]),@"opacity":@.72} mutableCopy]];
-  _settings=[@{@"swipe":@3,@"gyroGain":@3,@"gyro":@NO} mutableCopy];
+  _settings=[@{@"swipe":@3,@"gyroGain":@3,@"gyro":@NO,@"gyroInvertX":@NO,@"gyroInvertY":@NO} mutableCopy];
   NSDictionary *saved=[NSUserDefaults.standardUserDefaults dictionaryForKey:@"SelacoTouch.v1"];
   if([saved[@"layout"] isKindOfClass:NSArray.class]&&[saved[@"layout"] count]==8){for(int i=0;i<8;i++){NSDictionary*d=saved[@"layout"][i];if(![d isKindOfClass:NSDictionary.class])continue;for(NSString*k in @[@"x",@"y",@"size",@"opacity"])if([d[k] isKindOfClass:NSNumber.class])_layout[i][k]=d[k];}}
-  for(NSString*k in @[@"swipe",@"gyroGain",@"gyro"])if([saved[k] isKindOfClass:NSNumber.class])_settings[k]=saved[k];
+  for(NSString*k in @[@"swipe",@"gyroGain",@"gyro",@"gyroInvertX",@"gyroInvertY"])if([saved[k] isKindOfClass:NSNumber.class])_settings[k]=saved[k];
   _motion=[CMMotionManager new];_motion.deviceMotionUpdateInterval=1./120.;
   _link=[CADisplayLink displayLinkWithTarget:self selector:@selector(tick:)];[_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(suspend:) name:UIApplicationWillResignActiveNotification object:nil];
@@ -48,8 +49,8 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
  if(!active&&_motion.deviceMotionActive)[_motion stopDeviceMotionUpdates];
  CMDeviceMotion*m=_motion.deviceMotion;
  if(active&&m&&fabs(NSProcessInfo.processInfo.systemUptime-m.timestamp)<.15){
-  double sign=orientation==UIInterfaceOrientationLandscapeRight?-1:1;
-  double x=-m.rotationRate.x*sign,y=m.rotationRate.y*sign;
+  auto axes=SelacoIOS::GyroAxes(m.rotationRate.x,m.rotationRate.y,orientation==UIInterfaceOrientationLandscapeRight,[_settings[@"gyroInvertX"] boolValue],[_settings[@"gyroInvertY"] boolValue]);
+  double x=axes.x,y=axes.y;
   if(_calUntil>now){_sumX+=x;_sumY+=y;_samples++;}
   else {if(_calUntil){if(_samples){_biasX=_sumX/_samples;_biasY=_sumY/_samples;}_calUntil=0;}
    double gain=[self number:@"gyroGain" fallback:3 low:.1 high:12]*60.;
@@ -113,14 +114,14 @@ static double defaults[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.
 - (void)touchesCancelled:(NSSet<UITouch*>*)ts withEvent:(UIEvent*)event {[self reset];}
 - (UIButton*)option:(NSString*)title y:(CGFloat)y tag:(NSInteger)tag {UIButton*b=[UIButton buttonWithType:UIButtonTypeSystem];b.frame=CGRectMake(12,y,300,32);[b setTitle:title forState:UIControlStateNormal];b.tag=tag;[b addTarget:self action:@selector(optionPressed:) forControlEvents:UIControlEventTouchUpInside];[_panel addSubview:b];return b;}
 - (void)slider:(NSString*)title key:(NSString*)key y:(CGFloat)y low:(float)low high:(float)high value:(float)value tag:(NSInteger)tag {UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(12,y,300,20)];l.text=title;l.textColor=UIColor.whiteColor;l.font=[UIFont systemFontOfSize:12];[_panel addSubview:l];UISlider*s=[[UISlider alloc]initWithFrame:CGRectMake(12,y+20,300,25)];s.minimumValue=low;s.maximumValue=high;s.value=value;s.tag=tag;[s addTarget:self action:@selector(sliderChanged:) forControlEvents:UIControlEventValueChanged];[_panel addSubview:s];}
-- (void)settings {[self reset];_panel=[[UIView alloc]initWithFrame:CGRectMake(0,0,324,fmin(380,self.bounds.size.height-12))];_panel.center=CGPointMake(self.bounds.size.width/2,self.bounds.size.height/2);_panel.backgroundColor=[UIColor colorWithWhite:.05 alpha:.96];_panel.layer.cornerRadius=12;[self addSubview:_panel];
+- (void)settings {[self reset];_panel=[[UIScrollView alloc]initWithFrame:CGRectMake(0,0,324,fmin(380,self.bounds.size.height-12))];_panel.center=CGPointMake(self.bounds.size.width/2,self.bounds.size.height/2);_panel.backgroundColor=[UIColor colorWithWhite:.05 alpha:.96];_panel.layer.cornerRadius=12;[self addSubview:_panel];
  [self slider:@"Swipe sensitivity" key:@"swipe" y:4 low:.25 high:12 value:[_settings[@"swipe"] floatValue] tag:0];
  [self slider:@"Gyro sensitivity" key:@"gyroGain" y:49 low:.1 high:12 value:[_settings[@"gyroGain"] floatValue] tag:1];
  [self slider:[NSString stringWithFormat:@"%@ size (select by dragging in Edit)",labels()[_selected]] key:@"size" y:94 low:44 high:100 value:[_layout[_selected][@"size"] floatValue] tag:2];
  [self slider:@"Selected control opacity" key:@"opacity" y:139 low:.2 high:1 value:[_layout[_selected][@"opacity"] floatValue] tag:3];
- [self option:@"Edit positions / select control" y:185 tag:0];[self option:@"Calibrate gyro (hold still 1 second)" y:217 tag:1];[self option:@"Pause / game menu" y:249 tag:2];[self option:@"Done" y:281 tag:3];
+ [self option:@"Edit positions / select control" y:185 tag:0];[self option:@"Calibrate gyro (hold still 1 second)" y:217 tag:1];[self option:@"Pause / game menu" y:249 tag:2];[self option:[NSString stringWithFormat:@"Invert gyro horizontal: %@",[_settings[@"gyroInvertX"] boolValue]?@"ON":@"OFF"] y:281 tag:4];[self option:[NSString stringWithFormat:@"Invert gyro vertical: %@",[_settings[@"gyroInvertY"] boolValue]?@"ON":@"OFF"] y:313 tag:5];[self option:@"Done" y:345 tag:3];((UIScrollView*)_panel).contentSize=CGSizeMake(324,389);
 }
 - (void)sliderChanged:(UISlider*)s {if(s.tag<2)_settings[s.tag==0?@"swipe":@"gyroGain"]=@(s.value);else _layout[_selected][s.tag==2?@"size":@"opacity"]=@(s.value);[self save];[self setNeedsDisplay];}
-- (void)optionPressed:(UIButton*)b {[_panel removeFromSuperview];_panel=nil;[self reset];if(b.tag==0)_editing=true;if(b.tag==1){_settings[@"gyro"]=@YES;_calUntil=CACurrentMediaTime()+1;_sumX=_sumY=0;_samples=0;[self save];}if(b.tag==2)SelacoTouchPulse(1);}
+- (void)optionPressed:(UIButton*)b {if(b.tag==4||b.tag==5){NSString*k=b.tag==4?@"gyroInvertX":@"gyroInvertY";_settings[k]=@(![_settings[k] boolValue]);_biasX=_biasY=0;_calUntil=0;[self save];[b setTitle:[NSString stringWithFormat:@"Invert gyro %@: %@",b.tag==4?@"horizontal":@"vertical",[_settings[k] boolValue]?@"ON":@"OFF"] forState:UIControlStateNormal];return;}[_panel removeFromSuperview];_panel=nil;[self reset];if(b.tag==0)_editing=true;if(b.tag==1){_settings[@"gyro"]=@YES;_calUntil=CACurrentMediaTime()+1;_sumX=_sumY=0;_samples=0;[self save];}if(b.tag==2)SelacoTouchPulse(1);}
 @end
 UIView *SelacoCreateTouchView(UIViewController*controller){return [[SelacoTouchView alloc]initWithOwner:controller];}

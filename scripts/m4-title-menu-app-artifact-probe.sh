@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import os
 
 source_path = pathlib.Path(sys.argv[1])
 driver_path = pathlib.Path(sys.argv[2])
@@ -59,6 +60,17 @@ for old, new in replacements.items():
     if old not in text:
         raise SystemExit(f"Milestone 4 app probe marker changed: {old}")
     text = text.replace(old, new)
+
+if os.environ.get("SELACO_IOS_AUDIO_CANDIDATE") == "1" or os.environ.get("SELACO_IOS_SAVES_CANDIDATE") == "1":
+    text = text.replace('"0.9.2"', '"0.9.3"').replace('"22"', '"23"')
+package_anchor = 'cp -R "${engine_init_app}" "${ipa_stage}/Payload/Selaco.app"\n'
+assert text.count(package_anchor) == 1
+text = text.replace(package_anchor, package_anchor + r'''if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
+  cp "${repo_root}/build/artifacts/openal-ios-candidate/OPENAL-LICENSE.txt" "${ipa_stage}/Payload/Selaco.app/OPENAL-LICENSE.txt"
+  cp "${repo_root}/build/artifacts/openal-ios-candidate/FMT-LICENSE.txt" "${ipa_stage}/Payload/Selaco.app/FMT-LICENSE.txt"
+  cp "${repo_root}/OPENAL_CANDIDATE_PIN.env" "${ipa_stage}/Payload/Selaco.app/OPENAL-SOURCE.txt"
+fi
+''')
 
 old_symbols = (
     "for retained_symbol in _main _UIApplicationMain _Args _Video _PerfToSec "
@@ -163,12 +175,23 @@ for marker in \
   'actor_zscript_compile_entered' \
   'actor_zscript_compile_passed' \
   'engine_first_frame_presented' \
-  'SELACO_IOS_M4M_SAVE_BLOCKED write_attempted=0' \
   'red_blood_mod_selected' \
   'red_blood_mod_not_selected' \
   'title_loop_started'; do
   grep -Fq "${marker}" "${evidence_dir}/m4f-runtime-strings.txt"
 done
+
+if [[ "${SELACO_IOS_SAVES_CANDIDATE:-0}" == 1 ]]; then
+  grep -Fq 'Savegames-candidate' "${evidence_dir}/m4f-runtime-strings.txt"
+  if grep -Fq 'SELACO_IOS_M4M_SAVE_BLOCKED' "${evidence_dir}/m4f-runtime-strings.txt"; then
+    echo 'error: save candidate still contains no-write guard' >&2; exit 1
+  fi
+else
+  grep -Fq 'SELACO_IOS_M4M_SAVE_BLOCKED write_attempted=0' "${evidence_dir}/m4f-runtime-strings.txt"
+fi
+if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then
+  grep -Fq 'Selaco audio session activation failed' "${evidence_dir}/m4f-runtime-strings.txt"
+fi
 
 unzip -p "${public_support}" zscript/events.zs > "${evidence_dir}/m4f-public-events.zs"
 for marker in \
@@ -216,7 +239,13 @@ PY
 cat "${evidence_dir}/m4f-creg-section.txt"
 echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4" >> "${evidence_dir}/probe-manifest.txt"
 echo "stable_files_container=SelacoiOS Engine Init" >> "${evidence_dir}/probe-manifest.txt"
-echo "bundle_version=0.9.2(22)" >> "${evidence_dir}/probe-manifest.txt"
+if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 || "${SELACO_IOS_SAVES_CANDIDATE:-0}" == 1 ]]; then
+  echo "bundle_version=0.9.3(23)" >> "${evidence_dir}/probe-manifest.txt"
+else
+  echo "bundle_version=0.9.2(22)" >> "${evidence_dir}/probe-manifest.txt"
+fi
+echo "audio_candidate=${SELACO_IOS_AUDIO_CANDIDATE:-0}" >> "${evidence_dir}/probe-manifest.txt"
+echo "saves_candidate=${SELACO_IOS_SAVES_CANDIDATE:-0}" >> "${evidence_dir}/probe-manifest.txt"
 echo "input_backend=inert_title_menu_only" >> "${evidence_dir}/probe-manifest.txt"
 echo "vr_backend=disabled" >> "${evidence_dir}/probe-manifest.txt"
 echo "statistics_transport=disabled" >> "${evidence_dir}/probe-manifest.txt"
