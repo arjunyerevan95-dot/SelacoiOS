@@ -2,6 +2,11 @@
 
 SelacoiOS is an experimental, community-driven effort to investigate and build a native iOS port of the open-source GZSelaco engine for use with a legally obtained copy of **Selaco**.
 
+## Current candidate: M4M
+
+See [the upstream save API review](docs/M4M_UPSTREAM_SAVE_API_REVIEW.md).
+The sections below are historical M0 status, not the latest runtime evidence.
+
 ## Current status
 
 The project has completed its principal **Milestone 0 compile, link, and bundle-feasibility gates** and is entering bounded physical-runtime bootstrap work.
