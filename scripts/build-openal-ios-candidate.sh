@@ -24,7 +24,7 @@ cmake -G Xcode -S "$work/source" -B "$work/build" \
 cmake --build "$work/build" --config Release --target OpenAL --parallel 3
 lib="$(find "$work/build" -name libopenal.a -print -quit)"
 [[ -n "$lib" && -f "$lib" ]]
-xcrun lipo -verify_arch arm64 "$lib"
+xcrun lipo "$lib" -verify_arch arm64
 cp "$lib" "$out/libopenal.a"
 mkdir -p "$out/include"; cp -R "$work/source/include/AL" "$out/include/"
 cp "$work/source/COPYING" "$out/OPENAL-LICENSE.txt"
