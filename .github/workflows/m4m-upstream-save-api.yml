@@ -2,6 +2,9 @@ name: Milestone 4M Upstream Save API
 
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/selaco-upstream-save-api]
+    paths: [.github/workflows/m4m-upstream-save-api.yml]
 
 permissions:
   contents: read
@@ -12,7 +15,7 @@ concurrency:
 
 jobs:
   arm64-iphoneos-savegame-receiver:
-    name: full-engine iOS receiver-type diagnostic candidate
+    name: full-engine iOS upstream API title candidate
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -25,7 +28,7 @@ jobs:
           bash -n scripts/m4-title-menu-app-artifact-probe.sh
           python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py
 
-      - name: Build and validate M4L receiver diagnostic candidate
+      - name: Build and validate M4M upstream API diagnostic candidate
         run: |
           real_mktemp="$(command -v mktemp)"
           shim_dir="${GITHUB_WORKSPACE}/build/m4-title-menu-shims"
@@ -54,7 +57,7 @@ jobs:
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 
-      - name: Preserve M4L receiver evidence
+      - name: Preserve M4M upstream API evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
