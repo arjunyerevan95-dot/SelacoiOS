@@ -5,6 +5,7 @@
 // not implement gameplay controls, VR, statistics networking, or audio.
 
 #include <cstddef>
+#include "i_touch_input.h"
 
 #include "c_cvars.h"
 #include "m_joy.h"
@@ -14,7 +15,7 @@ extern void I_GetEvent();
 
 extern "C" const char *SelacoIOSM4CTitleMenuClosure()
 {
-    return "M4C title/menu closure: inert input, VR disabled, stats RPC disabled, native startup window bypassed, Vulkan renderer retained";
+    return "M4C title/menu closure: queued touch/gyro input, VR disabled, stats RPC disabled, native startup window bypassed, Vulkan renderer retained";
 }
 
 void I_StartTic()
@@ -22,6 +23,7 @@ void I_StartTic()
     // UIKit input translation is outside M4C. Keep the event pump contract alive
     // so the engine loop can advance without inventing gameplay input.
     I_GetEvent();
+    SelacoTouchDrain();
 }
 
 void I_StartFrame()
@@ -43,6 +45,7 @@ void I_GetAxes(float axes[NUM_JOYAXIS])
     for (int index = 0; index < NUM_JOYAXIS; ++index) {
         axes[index] = 0.0f;
     }
+    SelacoTouchAxes(axes);
 }
 
 void UpdateVRModes(bool)

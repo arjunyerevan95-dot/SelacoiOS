@@ -1,4 +1,4 @@
-name: Milestone 4M Upstream Save API
+name: Selaco Touch Gyro and Red Blood
 
 on:
   workflow_dispatch:
@@ -51,9 +51,9 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.0(20)"
+            echo "bundle_version=0.9.1(21)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
-            echo "diagnostic_scope=upstream_save_api_title_menu_no_write"
+            echo "diagnostic_scope=touch_gyro_red_blood_no_write"
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 

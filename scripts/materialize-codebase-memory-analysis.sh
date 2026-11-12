@@ -6,7 +6,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 source "${repo_root}/SOURCE_PIN.env"
 
 analysis_root="${repo_root}/.codebase-memory-worktree"
-engine_root="${analysis_root}/GZSelaco-M4M"
+engine_root="${analysis_root}/GZSelaco-controls"
 
 if [[ -e "${engine_root}" ]]; then
   echo "error: analysis tree already exists: ${engine_root}" >&2
@@ -55,6 +55,8 @@ python3 "${repo_root}/scripts/patch-gzselaco-mach-class-registry-ios-m4d.py" \
 python3 "${repo_root}/scripts/patch-gzselaco-zscript-diagnostics-ios-m4e.py" \
   "${engine_root}"
 python3 "${repo_root}/scripts/patch-gzselaco-saveguard-ios-m4m.py" "${engine_root}"
+
+python3 "${repo_root}/scripts/patch-gzselaco-touch-ios.py" "${engine_root}"
 
 git -C "${engine_root}" diff --check
 

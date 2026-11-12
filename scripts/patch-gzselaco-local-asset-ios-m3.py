@@ -197,6 +197,25 @@ void RunLicensedAssetProbe()
             "-nosound",
             "-nomusic",
         };
+        // Optional, exact allowlisted private mod only. Never enumerate Mods.
+        NSString *redBlood = [DiagnosticDirectory()
+            stringByAppendingPathComponent:@"Mods/Brutal Selaco.pk3"];
+        BOOL redBloodIsDirectory = NO;
+        const BOOL redBloodExists = [[NSFileManager defaultManager]
+            fileExistsAtPath:redBlood isDirectory:&redBloodIsDirectory];
+        NSString *redBloodDigest = redBloodExists && !redBloodIsDirectory
+            ? SHA256ForFile(redBlood) : nil;
+        if ([redBloodDigest isEqualToString:
+                @"c8889ddb25ea89601f19275c02b89fe4d3004220e40fdb1779a1e5a404427cac"] &&
+            HasZipSignature(redBlood)) {
+            arguments.emplace_back("-file");
+            arguments.emplace_back(redBlood.fileSystemRepresentation);
+            SelacoIOSReportLicensedAssetProbe("red_blood_mod_selected",
+                "Exact verified red-blood archive selected; other autoload remains disabled");
+        } else {
+            SelacoIOSReportLicensedAssetProbe("red_blood_mod_not_selected",
+                "Optional red-blood archive absent or identity mismatch; base game only");
+        }
         std::vector<char *> argv;
         argv.reserve(arguments.size());
         for (std::string& argument : arguments) {

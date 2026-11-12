@@ -101,6 +101,8 @@ new = (
     "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-zscript-diagnostics-ios-m4e.py\" "
     "\"${source_dir}\"\\n'\n"
     "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-saveguard-ios-m4m.py\" "
+    "\"${source_dir}\"\\n'\n"
+    "    + 'python3 \"${repo_root}/scripts/patch-gzselaco-touch-ios.py\" "
     "\"${source_dir}\"\\n',\n"
 )
 if text.count(old) != 1:

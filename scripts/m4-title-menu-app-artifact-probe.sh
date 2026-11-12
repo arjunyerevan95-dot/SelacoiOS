@@ -48,10 +48,10 @@ replacements = {
     "scripts/m4-engine-init-compile-probe.sh":
         "scripts/m4-title-menu-compile-probe.sh",
     "engine-init-app-probe:": "title-menu-app-probe:",
-    '"CFBundleShortVersionString": "0.6.0"': '"CFBundleShortVersionString": "0.9.0"',
-    '"CFBundleVersion": "6"': '"CFBundleVersion": "20"',
+    '"CFBundleShortVersionString": "0.6.0"': '"CFBundleShortVersionString": "0.9.1"',
+    '"CFBundleVersion": "6"': '"CFBundleVersion": "21"',
     'if [[ "${bundle_short_version}" != "0.6.0" || "${bundle_version}" != "6" ]]; then':
-        'if [[ "${bundle_short_version}" != "0.9.0" || "${bundle_version}" != "20" ]]; then',
+        'if [[ "${bundle_short_version}" != "0.9.1" || "${bundle_version}" != "21" ]]; then',
 }
 for old, new in replacements.items():
     if old not in text:
@@ -162,6 +162,8 @@ for marker in \
   'actor_zscript_compile_passed' \
   'engine_first_frame_presented' \
   'SELACO_IOS_M4M_SAVE_BLOCKED write_attempted=0' \
+  'red_blood_mod_selected' \
+  'red_blood_mod_not_selected' \
   'title_loop_started'; do
   grep -Fq "${marker}" "${evidence_dir}/m4f-runtime-strings.txt"
 done
@@ -212,7 +214,7 @@ PY
 cat "${evidence_dir}/m4f-creg-section.txt"
 echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4" >> "${evidence_dir}/probe-manifest.txt"
 echo "stable_files_container=SelacoiOS Engine Init" >> "${evidence_dir}/probe-manifest.txt"
-echo "bundle_version=0.9.0(20)" >> "${evidence_dir}/probe-manifest.txt"
+echo "bundle_version=0.9.1(21)" >> "${evidence_dir}/probe-manifest.txt"
 echo "input_backend=inert_title_menu_only" >> "${evidence_dir}/probe-manifest.txt"
 echo "vr_backend=disabled" >> "${evidence_dir}/probe-manifest.txt"
 echo "statistics_transport=disabled" >> "${evidence_dir}/probe-manifest.txt"
