@@ -40,3 +40,41 @@ Competing hypotheses: (1) shading/bandwidth dominates and temporal reconstructio
 Portable temporal history/jitter fixture compiled with C++17, -Wall -Wextra -Werror and executed successfully on Linux. Cases: first frame, continuous frame, camera cut, view switch, resize, incomplete motion, timing discontinuity, explicit reset, invalid time, bounded jitter. This only validates state management, not MetalFX or rendering. Native Objective-C++ bridge still requires Xcode26 compile and GPU texture fixture before renderer wiring. No Actions run dispatched for this work.
 
 Checkpoint 2: opt-in source patches now add a camera-only RG16F velocity attachment/pass plus previous-camera shader outputs, queried timeline feature/instance Metal export declarations, and native compile inclusion patch. GPU interop module exports real textures/shared events and encodes GPU wait/signal. Patches applied together to pinned engine fixture and source-contract checks passed. Camera-only diagnostic explicitly reports completeMotion=0 and is NOT fed into temporal/framegen. Objective-C++, Vulkan C++ and shaders remain uncompiled; no build or feature enablement claimed. Actual moving geometry/jitter/history consumption, submit barriers and generated-frame presentation remain unfinished.
+
+## Current checkpoint (2026-11-13, candidate 7308926)
+
+The earlier entries above are historical, not the current feature state. The native
+bridge, external-resource synchronization, sprite/model/portal history producers,
+reactive MRT, jitter and supported-frame temporal consumption are now wired into
+an opt-in engine candidate. Run 43444218232 passed its Xcode26 API compilation and
+input validation; the full app build was still in progress at this checkpoint.
+No on-device MetalFX execution or performance result has been verified.
+
+The test launcher enables temporal only. Frame interpolation has a compiled
+native encoder/backend and bounded timing interface, but is NOT connected to
+engine presentation and is deliberately disabled. This is not the completed
+user-requested temporal-plus-framegen feature.
+
+### Concrete remaining framegen integration
+
+Inspection of pinned engine 95130c3 plus this candidate confirms:
+- VkPostprocess::PostProcessScene runs Pass1 (exposure/custom-beforebloom/bloom),
+  then DrawEndScene2D (weapon sprites), then Pass2 (tonemap/colormap/lens/FXAA/
+  custom-scene). Its final pipeline image is NOT weapon-free.
+- VulkanRenderDevice::Update draws the HUD later with Draw2D, clears that list,
+  ends the frame and retires commands. HUD replay must occur before list clear,
+  not by assuming a second late callback can recover it.
+- Separately tone-mapping a transparent weapon texture is not equivalent to
+  tone-mapping the existing composited scene. Nonlinear postprocess and custom
+  scene shaders must not silently change semantics in a framegen experiment.
+- The remaining solution must retain a clean scene pair and correctly composite
+  weapon/HUD over both outputs, with distinct acquired-image/semaphore lifetimes.
+  A native encoder call alone does not establish these contracts.
+- Existing timed-present interface requires supported FIFO timing feedback;
+  MAILBOX availability in the regular port does not prove this framegen pacing
+  path is supported. Query and reject unsupported devices rather than queue an
+  unbounded or competing Metal presenter.
+
+These are implementation tasks, not reasons to ask the user to perform extra
+piecemeal phone tests. The regular temporal candidate remains independently
+useful and preserves ordinary rendering fallback while framegen is completed.
