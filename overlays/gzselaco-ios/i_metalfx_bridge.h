@@ -18,9 +18,12 @@ struct IOSMetalFXConfig {
     bool frameInterpolation;
     // Disable if upstream exposure is already applied to the input color.
     bool autoExposure = true;
+    // External resolved color/history, not this instance's temporal scaler.
+    bool externalInterpolationHistory = false;
+    bool reactiveMask = false;
 };
 struct IOSMetalFXFrame {
-    id<MTLTexture> color, depth, motion, output;
+    id<MTLTexture> color, depth, motion, output, reactive;
     float jitterX = 0, jitterY = 0;
     // Current-to-previous motion in pixels when scale is one.
     float motionScaleX = 1, motionScaleY = 1, preExposure = 1;
@@ -30,18 +33,20 @@ struct IOSMetalFXInterpolationFrame {
     // Tone-mapped output-resolution color, before UI; distinct previous frame.
     id<MTLTexture> color, previousColor, depth, motion, ui, output;
     float jitterX = 0, jitterY = 0, motionScaleX = 1, motionScaleY = 1;
+    bool previousFrameValid = false;
     float deltaTime = 0, nearPlane = 0, farPlane = 0, verticalFovDegrees = 0;
     bool depthReversed = false, reset = false;
 };
 enum class IOSMetalFXStatus { Encoded, Ready, Unsupported, InvalidArgument, CreationFailed, HistoryRequired };
 struct IOSMetalFXUsage {
-    MTLTextureUsage color, depth, motion, output;
+    MTLTextureUsage color, depth, motion, output, reactive;
     MTLTextureUsage interpolationColor, interpolationDepth, interpolationMotion, interpolationUI, interpolationOutput;
 };
 struct IOSMetalFXBridge;
 // ARC required. Link MetalFX weakly for pre-iOS16 deployment targets.
 IOSMetalFXStatus IOSMetalFXCreate(id<MTLDevice>, const IOSMetalFXConfig&, IOSMetalFXBridge**);
 void IOSMetalFXDestroy(IOSMetalFXBridge*);
+void IOSMetalFXResetInterpolationHistory(IOSMetalFXBridge*);
 IOSMetalFXUsage IOSMetalFXGetUsage(const IOSMetalFXBridge*);
 IOSMetalFXStatus IOSMetalFXEncodeTemporal(IOSMetalFXBridge*, id<MTLCommandBuffer>, const IOSMetalFXFrame&);
 IOSMetalFXStatus IOSMetalFXEncodeInterpolation(IOSMetalFXBridge*, id<MTLCommandBuffer>, const IOSMetalFXInterpolationFrame&);

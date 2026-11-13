@@ -16,7 +16,7 @@ inline bool IOSMetalFXRequested() {
 class VulkanDevice;
 struct IOSMetalFXBackend;
 struct IOSMetalFXVkFrame {
-    VkImage color = VK_NULL_HANDLE, motion = VK_NULL_HANDLE, output = VK_NULL_HANDLE;
+    VkImage color = VK_NULL_HANDLE, motion = VK_NULL_HANDLE, output = VK_NULL_HANDLE, reactive = VK_NULL_HANDLE;
     VkImageView depth = VK_NULL_HANDLE;
     uint32_t x=0,y=0,width=0,height=0,outputWidth=0,outputHeight=0;
     float jitterX=0,jitterY=0;
@@ -32,3 +32,18 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&, VulkanDevice*, const IOSMetal
 void IOSMetalFXBackendDestroy(IOSMetalFXBackend*);
 
 void IOSMetalFXBackendRetire(IOSMetalFXBackend*&);
+
+// Dedicated instance: do not reuse temporal backend pointer. All color inputs are
+// post-tonemap output-size RGBA16Float, depth/motion retain low-res scene rectangle.
+// Caller certifies consecutive real frames with no weapon/UI baked into either,
+// plus a reserved generated/real presentation pair (FIFO timing feedback).
+struct IOSMetalFXVkInterpolationFrame : IOSMetalFXVkFrame {
+    VkImage previousColor=VK_NULL_HANDLE, ui=VK_NULL_HANDLE;
+    bool framegenComplete=false, cleanScenePair=false, previousFrameValid=false;
+    bool presentationReserved=false;
+    uint64_t previousFrameId=0,currentFrameId=0;
+    float deltaTime=0,nearPlane=0,farPlane=0,verticalFovDegrees=0;
+};
+// Does not acquire/present a drawable or update caller's history. False => use real
+// frame only and release presentation reservation. Fence retirement rules above apply.
+bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&,VulkanDevice*,const IOSMetalFXVkInterpolationFrame&);

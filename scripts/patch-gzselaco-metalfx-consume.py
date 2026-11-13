@@ -73,15 +73,17 @@ edit(p,'\tmCurrentPipelineImage = 0;\n\n\tVkImageTransition()', '''\tmCurrentPip
     const auto temporalMetadata = SelacoMotionMetadata();
     if (IOSMetalFXRequested() && temporalMetadata.complete && fb->iosSceneScaled &&
         buffers->GetSceneSamples() == VK_SAMPLE_COUNT_1_BIT &&
-        buffers->SceneMotionDiagnostic.Image && buffers->SceneDepthStencil.DepthOnlyView &&
+        buffers->SceneMotionDiagnostic.Image && buffers->SceneReactive.Image && buffers->SceneDepthStencil.DepthOnlyView &&
         fb->iosNativeSceneRect.left == 0 && fb->iosNativeSceneRect.top == 0 &&
         fb->iosNativeSceneRect.width == buffers->GetWidth() && fb->iosNativeSceneRect.height == buffers->GetHeight()) {
         VkImageTransition().AddImage(&buffers->SceneColor,VK_IMAGE_LAYOUT_GENERAL,false)
             .AddImage(&buffers->SceneDepthStencil,VK_IMAGE_LAYOUT_GENERAL,false)
             .AddImage(&buffers->SceneMotionDiagnostic,VK_IMAGE_LAYOUT_GENERAL,false)
+            .AddImage(&buffers->SceneReactive,VK_IMAGE_LAYOUT_GENERAL,false)
             .AddImage(&buffers->PipelineImage[0],VK_IMAGE_LAYOUT_GENERAL,true).Execute(cmdbuffer);
         IOSMetalFXVkFrame f{}; f.color=buffers->SceneColor.Image->image;
         f.depth=buffers->SceneDepthStencil.DepthOnlyView->view;f.motion=buffers->SceneMotionDiagnostic.Image->image;
+        f.reactive=buffers->SceneReactive.Image->image;
         f.output=buffers->PipelineImage[0].Image->image;f.x=fb->mSceneViewport.left;f.y=fb->mSceneViewport.top;
         f.width=fb->mSceneViewport.width;f.height=fb->mSceneViewport.height;
         f.outputWidth=buffers->GetWidth();f.outputHeight=buffers->GetHeight();

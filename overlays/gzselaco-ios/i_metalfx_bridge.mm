@@ -52,10 +52,21 @@ IOSMetalFXStatus IOSMetalFXCreate(id<MTLDevice> device, const IOSMetalFXConfig& 
         td.colorTextureFormat = c.colorFormat; td.depthTextureFormat = c.depthFormat;
         td.motionTextureFormat = c.motionFormat; td.outputTextureFormat = c.outputFormat;
         td.autoExposureEnabled = c.autoExposure;
+#if defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 170400
+        if(c.reactiveMask) {
+            if(@available(iOS 17.4,*)) {td.reactiveMaskTextureEnabled=YES;td.reactiveMaskTextureFormat=MTLPixelFormatR8Unorm;}
+            else {delete b;return IOSMetalFXStatus::Unsupported;}
+        }
+#else
+        if(c.reactiveMask){delete b;return IOSMetalFXStatus::Unsupported;}
+#endif
         b->temporal = [td newTemporalScalerWithDevice:device];
         if (!b->temporal) { delete b; return IOSMetalFXStatus::CreationFailed; }
         b->usage.color = b->temporal.colorTextureUsage; b->usage.depth = b->temporal.depthTextureUsage;
         b->usage.motion = b->temporal.motionTextureUsage; b->usage.output = b->temporal.outputTextureUsage;
+#if defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 170400
+        if(c.reactiveMask) {if(@available(iOS 17.4,*)) b->usage.reactive=b->temporal.reactiveTextureUsage;}
+#endif
 #if IOS_HAS_METALFX_INTERPOLATION
         if (c.frameInterpolation) {
             if (@available(iOS 26.0, *)) {
@@ -64,7 +75,7 @@ IOSMetalFXStatus IOSMetalFXCreate(id<MTLDevice> device, const IOSMetalFXConfig& 
                 fd.outputWidth = c.outputWidth; fd.outputHeight = c.outputHeight;
                 fd.colorTextureFormat = c.interpolationColorFormat; fd.depthTextureFormat = c.depthFormat;
                 fd.motionTextureFormat = c.motionFormat; fd.outputTextureFormat = c.interpolationColorFormat;
-                fd.uiTextureFormat = c.uiFormat; fd.scaler = b->temporal;
+                fd.uiTextureFormat = c.uiFormat; fd.scaler = c.externalInterpolationHistory ? nil : b->temporal;
                 b->interpolator = [fd newFrameInterpolatorWithDevice:device];
                 if (!b->interpolator) { delete b; return IOSMetalFXStatus::CreationFailed; }
                 b->usage.interpolationColor = b->interpolator.colorTextureUsage;
@@ -80,10 +91,13 @@ IOSMetalFXStatus IOSMetalFXCreate(id<MTLDevice> device, const IOSMetalFXConfig& 
     return IOSMetalFXStatus::Unsupported;
 }
 void IOSMetalFXDestroy(IOSMetalFXBridge* b) { delete b; }
+void IOSMetalFXResetInterpolationHistory(IOSMetalFXBridge* b) { if(b)b->interpolationResetPending=true; }
 IOSMetalFXUsage IOSMetalFXGetUsage(const IOSMetalFXBridge* b) { return b ? b->usage : IOSMetalFXUsage{}; }
 IOSMetalFXStatus IOSMetalFXEncodeTemporal(IOSMetalFXBridge* b, id<MTLCommandBuffer> cb, const IOSMetalFXFrame& f) {
     if (!b || !CommandOK(cb,b->device)) return IOSMetalFXStatus::InvalidArgument;
     const auto& c = b->config; const auto& u = b->usage;
+    if(c.reactiveMask && (!TextureOK(f.reactive,b->device,c.inputWidth,c.inputHeight,MTLPixelFormatR8Unorm,u.reactive)||f.output==f.reactive))
+        return IOSMetalFXStatus::InvalidArgument;
     if (!TextureOK(f.color,b->device,c.inputWidth,c.inputHeight,c.colorFormat,u.color) ||
         !TextureOK(f.depth,b->device,c.inputWidth,c.inputHeight,c.depthFormat,u.depth) ||
         !TextureOK(f.motion,b->device,c.inputWidth,c.inputHeight,c.motionFormat,u.motion) ||
@@ -99,6 +113,9 @@ IOSMetalFXStatus IOSMetalFXEncodeTemporal(IOSMetalFXBridge* b, id<MTLCommandBuff
         t.jitterOffsetX = f.jitterX; t.jitterOffsetY = f.jitterY;
         t.motionVectorScaleX = f.motionScaleX; t.motionVectorScaleY = f.motionScaleY;
         t.preExposure = f.preExposure; t.depthReversed = f.depthReversed;
+#if defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 170400
+        if(c.reactiveMask) {if(@available(iOS 17.4,*))t.reactiveMaskTexture=f.reactive;}
+#endif
         t.reset = f.reset || !b->temporalHistory;
         if (t.reset) b->interpolationResetPending = true;
         [t encodeToCommandBuffer:cb]; b->temporalHistory = true;
@@ -112,7 +129,7 @@ IOSMetalFXStatus IOSMetalFXEncodeInterpolation(IOSMetalFXBridge* b, id<MTLComman
         if (!b || !CommandOK(cb,b->device)) return IOSMetalFXStatus::InvalidArgument;
         if (!b->config.frameInterpolation || !b->interpolator) return IOSMetalFXStatus::Unsupported;
         // Suppress synthetic frames on resets; renderer must present the real frame.
-        if (f.reset || !f.previousColor || !b->temporalHistory) {
+        if (f.reset || !f.previousColor || !(b->config.externalInterpolationHistory ? f.previousFrameValid : b->temporalHistory)) {
             b->interpolationResetPending = true; return IOSMetalFXStatus::HistoryRequired;
         }
         const auto& c=b->config; const auto& u=b->usage;
@@ -122,7 +139,7 @@ IOSMetalFXStatus IOSMetalFXEncodeInterpolation(IOSMetalFXBridge* b, id<MTLComman
             !TextureOK(f.motion,b->device,c.inputWidth,c.inputHeight,c.motionFormat,u.interpolationMotion) ||
             !TextureOK(f.ui,b->device,c.outputWidth,c.outputHeight,c.uiFormat,u.interpolationUI) ||
             !TextureOK(f.output,b->device,c.outputWidth,c.outputHeight,c.interpolationColorFormat,u.interpolationOutput) ||
-            f.output == f.color || f.output == f.previousColor || f.output == f.ui || f.output == f.depth || f.output == f.motion || f.color == f.previousColor ||
+            f.output == f.color || f.output == f.previousColor || f.output == f.ui || f.output == f.depth || f.output == f.motion || f.color == f.previousColor || f.ui == f.color || f.ui == f.previousColor ||
             !std::isfinite(f.deltaTime) || f.deltaTime <= 0 || !std::isfinite(f.nearPlane) || f.nearPlane <= 0 ||
             !std::isfinite(f.farPlane) || f.farPlane <= f.nearPlane || !std::isfinite(f.verticalFovDegrees) ||
             f.verticalFovDegrees <= 0 || f.verticalFovDegrees >= 180 || !std::isfinite(f.jitterX) ||

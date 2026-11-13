@@ -35,3 +35,15 @@ MSVC, including the Metal-export preprocessor branch (opaque Metal types). The
 fixture's CMake source-list anchor was isolated, not full CMake generation.
 Apple Objective-C++, Metal shader runtime compilation and actual queue/texture
 execution have NOT yet been validated. A single bounded Apple SDK compile is next.
+
+## Follow-on frame interpolation and reactive coverage (not yet SDK revalidated)
+The separate IOSMetalFXBackendInterpolate endpoint now performs real native
+interpolation encoding with the same GPU timeline handoff. It requires consecutive
+validated previous/current frame IDs, clean scene textures, separate UI, explicit
+motion/framegen completeness and a reserved presentation pair. No engine caller
+currently produces that clean pair or routes both outputs to presentation.
+
+Temporal consumption now exports/crops the R8 SceneReactive mask and configures
+MetalFX reactive-mask input with iOS17.4 availability guards. Uses
+reactiveTextureUsage (17.4), not the newer reactiveMaskTextureUsage property.
+These later changes are not covered by the earlier successful native compile.
