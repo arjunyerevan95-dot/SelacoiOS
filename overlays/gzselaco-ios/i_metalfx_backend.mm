@@ -21,8 +21,8 @@ struct IOSMetalFXBackend {
     IOSMetalFXInterop* interop=nullptr;
     IOSMetalFXBridge* bridge=nullptr;
     id<MTLCommandQueue> queue;
-    id<MTLComputePipelineState> crop;
-    id<MTLTexture> color,depth,motion,reactive;
+    id<MTLComputePipelineState> crop, influence;
+    id<MTLTexture> color,depth,motion,reactive,influenceUI;
     uint32_t width=0,height=0,outWidth=0,outHeight=0;
     // Keep completion-handler storage alive without capturing the C++ owner.
     std::shared_ptr<std::atomic<bool>> failed=std::make_shared<std::atomic<bool>>(false);
@@ -90,8 +90,21 @@ static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool i
     "constant uint2& origin[[buffer(0)]],uint2 p[[thread_position_in_grid]]){"
     "if(p.x>=de.get_width()||p.y>=de.get_height())return;uint2 q=p+origin;"
     "de.write(float4(d.read(q),0,0,1),p);mo.write(m.read(q),p);}";
+    if(interpolation) source=[source stringByAppendingString:
+        @"kernel void influence(texture2d<float,access::read> clean[[texture(0)]],"
+        "texture2d<float,access::read> full[[texture(1)]],texture2d<float,access::write> ui[[texture(2)]],"
+        "uint2 p[[thread_position_in_grid]]){if(p.x>=ui.get_width()||p.y>=ui.get_height())return;"
+        "bool changed=false;int2 limit=int2(ui.get_width()-1,ui.get_height()-1);"
+        "for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){uint2 q=uint2(clamp(int2(p)+int2(x,y),int2(0),limit));"
+        "float3 a=clean.read(q).rgb,b=full.read(q).rgb;changed=changed||any(a!=b)||any(!isfinite(a))||any(!isfinite(b));}"
+        "float3 value=full.read(p).rgb;ui.write(changed?float4(value,1.0):float4(0.0),p);}"];
     NSError* error=nil;id<MTLLibrary> lib=[device newLibraryWithSource:source options:nil error:&error];
     if(lib)p->crop=[device newComputePipelineStateWithFunction:[lib newFunctionWithName:interpolation ? @"cropDM" : @"crop"] error:&error];
+    if(interpolation && lib) {
+        p->influence=[device newComputePipelineStateWithFunction:[lib newFunctionWithName:@"influence"] error:&error];
+        p->influenceUI=Texture(device,f.outputWidth,f.outputHeight,MTLPixelFormatRGBA16Float,u.interpolationUI);
+        if(!p->influence||!p->influenceUI)return nullptr;
+    }
     if(!p->queue||!p->crop||!p->color||!p->depth||!p->motion||!p->reactive)return nullptr;
     p->width=f.width;p->height=f.height;p->outWidth=f.outputWidth;p->outHeight=f.outputHeight;
     return p.release();
@@ -181,16 +194,23 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
        f.previousFrameId==UINT64_MAX||f.currentFrameId!=f.previousFrameId+1||
        (p && f.currentFrameId<=p->lastInterpolatedFrame)||
        !d||!f.flushProducer||!f.width||!f.height||!f.outputWidth||!f.outputHeight||
-       !f.color||!f.previousColor||!f.ui||!f.depth||!f.motion||!f.output)return false;
+       !f.color||!f.previousColor||(!f.ui && !f.compositedColor)||!f.depth||!f.motion||!f.output||
+       (f.compositedColor && (!f.matchedComposition || f.ui)))return false;
     if(!p)p=Create(d,f,true);
     if(!p||p->vk!=d||!p->interpolation||p->failed->load())return false;
     if(p->width!=f.width||p->height!=f.height||p->outWidth!=f.outputWidth||p->outHeight!=f.outputHeight){p->recreate=true;return false;}
-    id<MTLTexture> color=nil,previous=nil,ui=nil,depth=nil,motion=nil,output=nil;
+    id<MTLTexture> color=nil,previous=nil,ui=nil,depth=nil,motion=nil,output=nil,composite=nil;
     IOSMetalFXExportImage e{};e.textureExportDeclaredAtCreate=true;
     auto exportColor=[&](VkImage image,id<MTLTexture>*out){e.image=image;e.imageView=VK_NULL_HANDLE;e.plane=VK_IMAGE_ASPECT_COLOR_BIT;
         return IOSMetalFXInteropTexture(p->interop,e,out)==IOSMetalFXInteropStatus::Ready;};
-    if(!exportColor(f.color,&color)||!exportColor(f.previousColor,&previous)||!exportColor(f.ui,&ui)||
+    if(!exportColor(f.color,&color)||!exportColor(f.previousColor,&previous)||
        !exportColor(f.motion,&motion)||!exportColor(f.output,&output))return false;
+    if(f.compositedColor) {
+        if(!exportColor(f.compositedColor,&composite)||!Readable(composite,MTLPixelFormatRGBA16Float)||
+           !Readable(color,MTLPixelFormatRGBA16Float)||composite.width!=f.outputWidth||composite.height!=f.outputHeight||
+           color.width!=f.outputWidth||color.height!=f.outputHeight||composite==output||color==output)return false;
+        ui=p->influenceUI;
+    } else if(!exportColor(f.ui,&ui))return false;
     e.image=VK_NULL_HANDLE;e.imageView=f.depth;e.plane=VK_IMAGE_ASPECT_DEPTH_BIT;
     if(IOSMetalFXInteropTexture(p->interop,e,&depth)!=IOSMetalFXInteropStatus::Ready)return false;
     if(!Readable(motion,MTLPixelFormatRG16Float)||(depth.usage&MTLTextureUsageShaderRead)==0||
@@ -204,6 +224,13 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
     [enc setTexture:p->depth atIndex:2];[enc setTexture:p->motion atIndex:3];
     uint32_t origin[2]={f.x,f.y};[enc setBytes:origin length:sizeof(origin) atIndex:0];
     [enc dispatchThreads:MTLSizeMake(f.width,f.height,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];[enc endEncoding];
+    if(composite) {
+        auto overlay=[cb computeCommandEncoder];if(!overlay){p->failed->store(true);return false;}
+        [overlay setComputePipelineState:p->influence];[overlay setTexture:color atIndex:0];
+        [overlay setTexture:composite atIndex:1];[overlay setTexture:ui atIndex:2];
+        [overlay dispatchThreads:MTLSizeMake(f.outputWidth,f.outputHeight,1) threadsPerThreadgroup:MTLSizeMake(8,8,1)];
+        [overlay endEncoding];
+    }
     IOSMetalFXInterpolationFrame frame{};frame.color=color;frame.previousColor=previous;frame.ui=ui;
     frame.depth=p->depth;frame.motion=p->motion;frame.output=output;frame.previousFrameValid=true;
     frame.jitterX=f.jitterX;frame.jitterY=f.jitterY;frame.motionScaleX=float(f.width);frame.motionScaleY=float(f.height);

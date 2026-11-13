@@ -39,6 +39,11 @@ void IOSMetalFXBackendRetire(IOSMetalFXBackend*&);
 // plus a reserved generated/real presentation pair (FIFO timing feedback).
 struct IOSMetalFXVkInterpolationFrame : IOSMetalFXVkFrame {
     VkImage previousColor=VK_NULL_HANDLE, ui=VK_NULL_HANDLE;
+    // Optional exact current composite (weapons + HUD + the same postprocess).
+    // Use with a matching clean color to synthesize a conservative opaque UI
+    // influence patch. Translucent edges include current background by design.
+    VkImage compositedColor=VK_NULL_HANDLE;
+    bool matchedComposition=false;
     bool framegenComplete=false, cleanScenePair=false, previousFrameValid=false;
     bool presentationReserved=false;
     uint64_t previousFrameId=0,currentFrameId=0;

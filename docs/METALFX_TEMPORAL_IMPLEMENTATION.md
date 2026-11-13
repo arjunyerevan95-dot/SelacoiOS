@@ -78,3 +78,22 @@ Inspection of pinned engine 95130c3 plus this candidate confirms:
 These are implementation tasks, not reasons to ask the user to perform extra
 piecemeal phone tests. The regular temporal candidate remains independently
 useful and preserves ordinary rendering fallback while framegen is completed.
+
+## Framegen continuation after temporal delivery
+
+Staged (not included in master stack or shipped IPA):
+- `patch-gzselaco-metalfx-pair-present.py` adds actual intermediate Vulkan submit/
+  present plus a distinct second acquire semaphore. Independent review confirmed
+  the chain/fence design but found missing swapchain-generation and explicit
+  present-error propagation. DO NOT call or enable this draft until those are
+  resolved; a missing feedback ID must not strand a pacer reservation.
+- Native interpolation backend now accepts a certified matching clean/composited
+  pair, synthesizes an opaque one-pixel-dilated influence overlay on the GPU and
+  passes it to MetalFX. Real composite remains untouched. This avoids invalid
+  independent weapon tonemapping. It may repeat small current-background patches
+  around transparent weapon/HUD edges on generated frames.
+- CPU composition identity/dilation contract passed. New Metal kernel and new
+  presentation changes are NOT SDK/device compiled. No new build dispatched.
+- Still required: dual deterministic Pass2 scene capture/history, correct full
+  composite capture including HUD, complete renderer callsite, loss handling,
+  combined native validation and on-device evidence.
