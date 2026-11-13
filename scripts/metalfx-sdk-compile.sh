@@ -27,5 +27,7 @@ for name in temporal_history temporal_primitive_history temporal_present_pacer t
   clang++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios "tests/${name}_test.cpp" -o "$out/$name"
   "$out/$name"
 done
+python3 scripts/extract-metalfx-kernels.py "$out/backend-kernels.metal"
+xcrun --sdk iphoneos metal -target air64-apple-ios16.0 -c "$out/backend-kernels.metal" -o "$out/backend-kernels.air" || failed=1
 [[ $failed == 0 ]] || exit 1
 printf 'iOS SDK %s: native MetalFX and patched Vulkan compile succeeded; NOT linked/device tested\n' "$version"
