@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Guarded framegen + VSync/HDR; projection conversion uses explicit portable math.
+# Early admission avoids rejected-frame GPU copies; bounded runtime gate/presentation counters.
 
 on:
   workflow_dispatch:
@@ -73,9 +73,9 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(28)"
+            echo "bundle_version=0.9.7(29)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
-            echo "diagnostic_scope=experimental_guarded_framegen_vsync_repair_hdr_discovery"
+            echo "diagnostic_scope=early_framegen_admission_and_bounded_runtime_receipts"
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 

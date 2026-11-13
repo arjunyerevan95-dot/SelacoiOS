@@ -22,9 +22,13 @@ patches=[
  'patch-gzselaco-metalfx-pair-present.py',
  'patch-gzselaco-metalfx-composition.py',
  'patch-gzselaco-metalfx-framegen-route.py',
+ 'patch-gzselaco-metalfx-admission.py',
  'patch-gzselaco-ios-output-transition.py',
  'patch-gzselaco-metalfx-test-launcher.py',
 ]
 for name in patches:
  subprocess.run([sys.executable,str(repo/'scripts'/name),str(root)],check=True)
 print('Experimental MetalFX stack materialized; no full-coverage/device claim')
+
+for name in ['framegen_admission_contract_test.py','framegen_route_contract_test.py']:
+ subprocess.run([sys.executable,str(repo/'tests'/name),str(root)],check=True)
