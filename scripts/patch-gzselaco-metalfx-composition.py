@@ -45,11 +45,12 @@ edit(b+'vulkan/renderer/vk_postprocess.h','    PPShader motionFallback;','''    
     bool temporalConsumed=false,framegenCaptured=false,framegenPairReady=false;
     uint64_t framegenSerial=0,framegenPreviousSerial=0;
     unsigned framegenIndex=0;
+    IntRect framegenInputRect;
     VkTextureImage framegenSnapshot,framegenClean[2],framegenComposite;
     void EnsureFramegenTexture(VkTextureImage& image);
     void CopyFramegenImage(VkTextureImage& source,VkTextureImage& destination);
     bool CaptureFramegenClean(int fixedcm,float flash,int width,int height);''')
-edit(b+'vulkan/renderer/vk_postprocess.cpp','\tmCurrentPipelineImage = 0;','\tmCurrentPipelineImage = 0;\n\ttemporalConsumed=false;')
+edit(b+'vulkan/renderer/vk_postprocess.cpp','\tmCurrentPipelineImage = 0;','\tmCurrentPipelineImage = 0;\n\ttemporalConsumed=false;\n\tframegenInputRect=fb->mSceneViewport;')
 edit(b+'vulkan/renderer/vk_postprocess.cpp','        if(consumed){','        if(consumed){\n            temporalConsumed=true;')
 edit(b+'vulkan/renderer/vk_postprocess.cpp','\thw_postprocess.Pass1(&renderstate, fixedcm, sceneWidth, sceneHeight);','''\thw_postprocess.Pass1(&renderstate, fixedcm, sceneWidth, sceneHeight);
 \t// Snapshot AFTER exposure/bloom, then run clean Pass2 without replaying Pass1.
@@ -91,7 +92,7 @@ bool VkPostprocess::CaptureFramegenClean(int fixedcm,float flash,int width,int h
  const auto meta=SelacoMotionMetadata();
  const auto serial=SelacoMotionRuntime::Get().serial;
  if(!option || std::strcmp(option,"1") || !temporalConsumed || !meta.complete || !meta.projectionValid ||
-    !fb->iosSceneScaled || fb->GetBuffers()->GetSceneSamples()!=VK_SAMPLE_COUNT_1_BIT ||
+    fb->GetBuffers()->GetSceneSamples()!=VK_SAMPLE_COUNT_1_BIT ||
     hw_postprocess.customShaders.HasEnabled("scene") || hw_postprocess.customShaders.HasEnabled("screen")) {
   framegenPreviousSerial=0;return false;
  }
