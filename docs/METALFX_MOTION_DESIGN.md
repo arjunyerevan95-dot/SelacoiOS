@@ -93,3 +93,14 @@ Still required runtime hooks:
 - Aggregate any rejection into reactive/history validity coverage; never interpret a missing vector as zero motion. Caller must mark unsupported particle/portal/transparent paths explicitly.
 - Commit only after frame construction succeeds; invalidate on discontinuities. GPU resource retirement and upload ring lifetime remain external responsibilities.
 
+
+## Camera-only raster diagnostic patch (2026-11-13)
+
+Implemented `scripts/patch-gzselaco-temporal-motion.py`, applied to an isolated pinned95130c3 engine worktree. It introduces an opt-in `SELACO_MOTION_DIAGNOSTIC=1` iOS path and a dedicated RG16F fourth color attachment with matching renderpass format, framebuffer slot, clear value and nonblended write state. Main shaders emit previous-minus-current projected UV motion; both CPU viewpoint layout and Vulkan/OpenGL UBO declarations gain previous camera matrices. Previous main-view matrices are captured after scene processing; first view/camera identity changes or elapsed gaps reject camera history. This remains incomplete history handling, not the final reset mechanism.
+
+This patch is intentionally labeled CAMERA-ONLY DIAGNOSTIC. `SelacoMotionComplete()` returns false. It neither enables MetalFX nor claims usable whole-scene temporal input. Dynamic geometry, portal-view reprojection, transient materials and some special effect shaders remain incorrect/unwritten. The fourth target is diagnostic storage only; no production consumer or texture transition to a MetalFX read has been connected. It has no projection jitter yet. Special-effect/transparent pixels need explicit validity coverage before consumption.
+
+Validation performed: Python syntax, exact source-anchor application to pinned source, git diff whitespace check, and `tests/temporal_motion_patch_test.py` source-contract assertions. These are NOT C++/GLSL compilation, cumulative iOS patch application, Vulkan validation, native build or phone evidence. No workflow changed or build dispatched. Before merging into a runnable feature, compile actual generated shader permutations, verify fourth-attachment limits and unsupported effect coverage, apply after existing scene-scale patches, and finish object histories/jitter/reset/interop.
+
+Additional compatibility check: existing patch-gzselaco-scene-scale.py followed by temporal-motion patch applied successfully to isolated pinned source; source-contract checks and diff check pass. Full cumulative platform patch stack and native compilation remain unverified.
+
