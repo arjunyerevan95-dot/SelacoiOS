@@ -45,3 +45,9 @@ edit(p,'\tSelectFormat(caps, hdr);', '''
 \t\t!vsync && !supportsMailbox ? " FIFO safety fallback (not uncapped)" : "");
 #endif
 \tSelectFormat(caps, hdr);''')
+# Experimental stack is intentionally excluded from ordinary controls builds.
+# This hook is shared by the native app build and source materializer, so they
+# cannot silently validate a different source tree. Runtime opt-in is separate.
+import os, subprocess
+if os.environ.get('SELACO_METALFX_EXPERIMENTAL_BUILD') == '1':
+    subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'patch-gzselaco-metalfx-stack.py'), str(root)], check=True)
