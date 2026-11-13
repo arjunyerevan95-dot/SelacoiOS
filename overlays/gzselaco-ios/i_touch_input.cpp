@@ -3,6 +3,9 @@
 #include "i_interface.h"
 #include "m_joy.h"
 #include "keydef.h"
+#include "c_bind.h"
+#include "i_touch_binding.h"
+#include <cstdio>
 SelacoTouchState selacoTouch;
 void SelacoTouchKey(int k,bool down){if(k<0||k>=512)return;std::lock_guard<std::mutex> l(selacoTouch.mutex);if(down&&!selacoTouch.keys[k])selacoTouch.pressed[k]=true;selacoTouch.keys[k]=down;}
 void SelacoTouchPulse(int k){if(k<0||k>=512)return;std::lock_guard<std::mutex> l(selacoTouch.mutex);if(selacoTouch.pulses.size()<24)selacoTouch.pulses.push_back(k);}
@@ -11,7 +14,23 @@ void SelacoTouchMove(double f,double s){std::lock_guard<std::mutex> l(selacoTouc
 void SelacoTouchReset(){std::lock_guard<std::mutex> l(selacoTouch.mutex);selacoTouch.clear();}
 bool SelacoTouchMenu(){std::lock_guard<std::mutex> l(selacoTouch.mutex);return selacoTouch.menu;}
 static int guiKey(int k){switch(k){case KEY_UPARROW:return GK_UP;case KEY_DOWNARROW:return GK_DOWN;case KEY_LEFTARROW:return GK_LEFT;case KEY_RIGHTARROW:return GK_RIGHT;case KEY_ENTER:return GK_RETURN;case KEY_ESCAPE:case 0x0f:case 0x3a:return 27;default:return 0;}}
-static void post(int k,bool down,bool menu){event_t e{};if(menu){int g=guiKey(k);if(!g)return;e.type=EV_GUI_Event;e.subtype=down?EV_GUI_KeyDown:EV_GUI_KeyUp;e.data1=g;e.data2=g;}else{e.type=down?EV_KeyDown:EV_KeyUp;e.data1=k;}D_PostEvent(&e);}
+static void post(int k,bool down,bool menu){
+ static int heldRoute[512]{};static bool logged[512]{};
+ if(!menu){
+  int requested=k;
+  if(down){
+   std::size_t n=0;const auto *catalog=SelacoIOS::TouchActionCatalog(n);
+   for(std::size_t i=0;i<n;++i)if(catalog[i].scanCode==requested&&catalog[i].context==SelacoIOS::TouchActionContext::Gameplay){
+    k=SelacoIOS::ResolveTouchBinding(catalog[i],[](int key){return Bindings.GetBind(key);});
+    if(!logged[requested]){std::fprintf(stderr,"SELACO_TOUCH_BIND action=%s requested=%d resolved=%d native_pad=%d\n",catalog[i].id,requested,k,k>=0x1b4&&k<=0x1c3);logged[requested]=true;}
+    break;
+   }
+   heldRoute[requested]=k;
+  }else{k=heldRoute[requested];heldRoute[requested]=0;}
+  if(k<=0)return;
+  if(k>=0x1b4&&k<=0x1c3){Joy_GenerateButtonEvents(down?0:1,down?1:0,1,k);return;}
+ }
+ event_t e{};if(menu){int g=guiKey(k);if(!g)return;e.type=EV_GUI_Event;e.subtype=down?EV_GUI_KeyDown:EV_GUI_KeyUp;e.data1=g;e.data2=g;}else{e.type=down?EV_KeyDown:EV_KeyUp;e.data1=k;}D_PostEvent(&e);}
 void SelacoTouchDrain(){
  static bool sent[512]{};static bool previousMenu=true;
  bool mode=sysCallbacks.WantGuiCapture&&sysCallbacks.WantGuiCapture();

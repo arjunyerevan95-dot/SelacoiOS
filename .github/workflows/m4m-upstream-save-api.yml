@@ -1,5 +1,5 @@
-name: Selaco Approved Controls and Safe Presentation
-# Build26: approved glyph layout, independent look ADS gesture and iOS safe presentation.
+name: Selaco Native Bindings and Layout Repair
+# Build27: legacy layout decoding and loaded native controller bindings.
 
 on:
   workflow_dispatch:
@@ -33,6 +33,10 @@ jobs:
           python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
           c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_policy_test.cpp -o /tmp/selaco-touch-policy
           /tmp/selaco-touch-policy
+          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_binding_test.cpp -o /tmp/selaco-touch-binding
+          /tmp/selaco-touch-binding
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/touch_stubs -Ioverlays/gzselaco-ios tests/touch_input_test.cpp overlays/gzselaco-ios/i_touch_input.cpp -o /tmp/selaco-touch-input
+          /tmp/selaco-touch-input
 
       - name: Build and validate M4M upstream API diagnostic candidate
         run: |
@@ -57,7 +61,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.6(26)"
+            echo "bundle_version=0.9.7(27)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=scene_scale_native_hud_vorbis_custom_controls_isolated_saves"
             echo "job_id_available_after_run=true"

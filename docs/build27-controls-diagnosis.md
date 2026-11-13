@@ -1,0 +1,9 @@
+# Build27 controls diagnosis (not device-verified)
+
+Architecture: UIKit owns layout and logical action IDs; engine-thread bridge samples state and dispatches native events. Build26 loaded v1 geometry into reordered default slots without restoring missing action IDs. Exact untouched v1 gets new actions at old coordinates; this explains Fire at the old top Jump position. Competing explanation: a genuine customized layout. Fix decodes original v1 slot actions first, migrates only exact old default or exact persisted build26 hybrid fingerprint, and preserves customized layout with backup. SELACO_TOUCH_LAYOUT marker distinguishes migration path.
+
+Actions previously dispatched hard-coded default keyboard/mouse codes, ignoring loaded rebindings. Fix resolves the intended command from loaded Bindings, prefers native PAD codes and emits via the engine's Joy_GenerateButtonEvents (shared XInput route). Held releases retain their press-time route. No binding is overwritten. Missing command is reported instead of silently activating something unrelated. Native +usereload remains the approved contextual combined action; no custom tap/hold semantics invented. SELACO_TOUCH_BIND records action/route once.
+
+Public pinned commonbinds verifies PAD_X +usereload, RT +attack, LT +altattack, A +jump, LB +DashMode, RThumb meleeButton, B useGadget. Actual phone bindings and layout still unavailable: read-only USB and paired Network attempts returned DeviceNotFoundError. No phone data changed or retail archive inspected.
+
+Focused portable resolver and production bridge tests passed under g++17 -Wall -Wextra -Werror in cloud. Includes rebindings, missing action, PAD preference, combined action and release after rebind. UIKit/native build and device behavior remain unverified. No build has been dispatched yet.

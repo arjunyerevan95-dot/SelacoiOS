@@ -7,6 +7,7 @@
 #include "i_touch_actions.h"
 #include <cmath>
 static double positions[8][3]={{.66,.31,82},{.78,.18,58},{.89,.29,58},{.78,.39,58},{.92,.09,46},{.55,.09,44},{.65,.09,44},{.73,.09,44}};
+static NSArray* legacyIDs(){return @[@"jump",@"alt",@"reload",@"dash",@"wheel",@"use",@"gyro",@"fire"]; }
 static NSArray* defaultIDs(){return @[@"fire",@"jump",@"dash",@"use_reload",@"wheel",@"gyro",@"melee",@"gadget"];}
 static id copySettings(id x){NSData*d=[NSPropertyListSerialization dataWithPropertyList:x format:NSPropertyListBinaryFormat_v1_0 options:0 error:nil];return d?[NSPropertyListSerialization propertyListWithData:d options:NSPropertyListMutableContainersAndLeaves format:NULL error:nil]:nil;}
 static BOOL known(NSString*s){return [s isKindOfClass:NSString.class]&&([@[@"wheel",@"gyro",@"weapons",@"more",@"settings"] containsObject:s]||SelacoIOS::FindTouchAction(s.UTF8String));}
@@ -29,13 +30,30 @@ static NSMutableDictionary* defaults(){NSMutableArray*b=[NSMutableArray new];for
  NSDictionary*saved=[NSUserDefaults.standardUserDefaults dictionaryForKey:@"SelacoTouch.v2"]?:[NSUserDefaults.standardUserDefaults dictionaryForKey:@"SelacoTouch.v1"];
  if([saved isKindOfClass:NSDictionary.class]){for(NSString*k in _settings.allKeys){if([_settings[k] isKindOfClass:NSNumber.class]&&[saved[k] isKindOfClass:NSNumber.class])_settings[k]=saved[k];}
   if(!saved[@"swipeY"]&&saved[@"swipe"])_settings[@"swipeY"]=saved[@"swipe"];if(!saved[@"gyroY"]&&saved[@"gyroGain"])_settings[@"gyroY"]=saved[@"gyroGain"];
-  if([saved[@"layout"] isKindOfClass:NSArray.class]&&[saved[@"layout"] count]==8)for(int i=0;i<8;i++){id d=saved[@"layout"][i];if(![d isKindOfClass:NSDictionary.class])continue;for(NSString*k in @[@"x",@"y",@"size",@"opacity",@"visible",@"label"])if([d[k] isKindOfClass:NSNumber.class])_settings[@"layout"][i][k]=d[k];if(known(d[@"action"]))_settings[@"layout"][i][@"action"]=d[@"action"];}
+  if([saved[@"layout"] isKindOfClass:NSArray.class]&&[saved[@"layout"] count]==8)for(int i=0;i<8;i++){id d=saved[@"layout"][i];if(![d isKindOfClass:NSDictionary.class])continue;for(NSString*k in @[@"x",@"y",@"size",@"opacity",@"visible",@"label"])if([d[k] isKindOfClass:NSNumber.class])_settings[@"layout"][i][k]=d[k];if(known(d[@"action"]))_settings[@"layout"][i][@"action"]=d[@"action"];else if(!d[@"action"])_settings[@"layout"][i][@"action"]=legacyIDs()[i];}
   if([saved[@"menuLayout"] isKindOfClass:NSArray.class]&&[saved[@"menuLayout"] count]==8)for(int i=0;i<8;i++){id d=saved[@"menuLayout"][i];if(![d isKindOfClass:NSDictionary.class])continue;for(NSString*k in @[@"x",@"y",@"size",@"opacity",@"visible",@"label"])if([d[k] isKindOfClass:NSNumber.class])_settings[@"menuLayout"][i][k]=d[k];if(known(d[@"action"]))_settings[@"menuLayout"][i][@"action"]=d[@"action"];}
   for(NSString*k in @[@"radial",@"more"]){NSArray*a=saved[k];if([a isKindOfClass:NSArray.class]&&a.count==8){BOOL valid=YES;for(id s in a)if(!known(s))valid=NO;if(valid)_settings[k]=[a mutableCopy];}}
  }
+ // v1 stored positions without action IDs. Decode its original slot semantics first.
  // Upgrade only the untouched shipped layout; keep every customized layout intact.
- if(saved){double old[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.27,54},{.817,.335,44},{.898,.418,52},{.76,.455,70},{.85,.54,76}};NSArray*ids=@[@"jump",@"alt",@"reload",@"dash",@"wheel",@"use",@"gyro",@"fire"];BOOL untouched=YES;for(int i=0;i<8;i++){NSDictionary*d=_settings[@"layout"][i];if(![d[@"action"] isEqual:ids[i]]||fabs([d[@"x"] doubleValue]-old[i][0])>.00001||fabs([d[@"y"] doubleValue]-old[i][1])>.00001||fabs([d[@"size"] doubleValue]-old[i][2])>.00001||![d[@"visible"] boolValue]||![d[@"label"] boolValue]||fabs([d[@"opacity"] doubleValue]-.72)>.00001)untouched=NO;}if(untouched){if(![NSUserDefaults.standardUserDefaults objectForKey:@"SelacoTouch.preGlyphBackup"])[NSUserDefaults.standardUserDefaults setObject:saved forKey:@"SelacoTouch.preGlyphBackup"];_settings[@"layout"]=defaults()[@"layout"];}}
- _settings[@"version"]=@3;_layout=_settings[@"layout"];
+ if(saved){
+  double old[8][3]={{.812,.09,56},{.924,.134,44},{.741,.24,44},{.875,.27,54},{.817,.335,44},{.898,.418,52},{.76,.455,70},{.85,.54,76}};
+  BOOL oldIDs=YES,hybridIDs=[saved[@"version"] intValue]==3,oldGeometry=YES;
+  for(int i=0;i<8;i++){
+   NSDictionary*d=_settings[@"layout"][i];
+   oldIDs=oldIDs&&[d[@"action"] isEqual:legacyIDs()[i]];
+   hybridIDs=hybridIDs&&[d[@"action"] isEqual:defaultIDs()[i]];
+   if(fabs([d[@"x"] doubleValue]-old[i][0])>.00001||fabs([d[@"y"] doubleValue]-old[i][1])>.00001||fabs([d[@"size"] doubleValue]-old[i][2])>.00001||![d[@"visible"] boolValue]||![d[@"label"] boolValue]||fabs([d[@"opacity"] doubleValue]-.72)>.00001)oldGeometry=NO;
+  }
+  // Also repair the exact build26 hybrid: new actions accidentally paired with
+  // all untouched v1 coordinates. Never classify a moved/resized layout as this.
+  if(oldGeometry&&(oldIDs||hybridIDs)){
+   if(![NSUserDefaults.standardUserDefaults objectForKey:@"SelacoTouch.preGlyphBackup"])[NSUserDefaults.standardUserDefaults setObject:saved forKey:@"SelacoTouch.preGlyphBackup"];
+   _settings[@"layout"]=defaults()[@"layout"];
+   NSLog(@"SELACO_TOUCH_LAYOUT migration=%@",hybridIDs?@"build26-hybrid":@"legacy-default");
+  }else NSLog(@"SELACO_TOUCH_LAYOUT migration=preserve-custom");
+ }
+ _settings[@"version"]=@4;_layout=_settings[@"layout"];
  _motion=[CMMotionManager new];_motion.deviceMotionUpdateInterval=1./120.;_link=[CADisplayLink displayLinkWithTarget:self selector:@selector(tick:)];[_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(suspend:) name:UIApplicationWillResignActiveNotification object:nil];[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(resume:) name:UIApplicationDidBecomeActiveNotification object:nil];
  UILongPressGestureRecognizer*recovery=[[UILongPressGestureRecognizer alloc]initWithTarget:self action:@selector(recover:)];recovery.numberOfTouchesRequired=3;recovery.minimumPressDuration=1;[self addGestureRecognizer:recovery];
@@ -97,7 +115,7 @@ static NSMutableDictionary* defaults(){NSMutableArray*b=[NSMutableArray new];for
  [self option:@"Apply changes" action:@"apply" y:y];y+=34;[self option:@"Cancel changes" action:@"cancel" y:y];y+=34;
  [self option:_editMenu?@"Editing MENU controls (tap for gameplay)":@"Editing GAMEPLAY controls (tap for menu)" action:@"mode" y:y];y+=34;
  [self option:[NSString stringWithFormat:@"Selected button %d: %@ (tap to cycle)",_selected+1,label(_layout[_selected][@"action"])] action:@"select" y:y];y+=34;
- [self option:@"Assign selected button action…" action:@"bind" y:y];y+=34;[self option:@"Drag buttons / preview regions" action:@"edit" y:y];y+=34;
+ [self option:@"Assign selected button actionâ€¦" action:@"bind" y:y];y+=34;[self option:@"Drag buttons / preview regions" action:@"edit" y:y];y+=34;
  [self option:[NSString stringWithFormat:@"Selected button visible: %@",[_layout[_selected][@"visible"] boolValue]?@"YES":@"NO"] action:@"visible" y:y];y+=34;
  [self option:[NSString stringWithFormat:@"Selected button label: %@",[_layout[_selected][@"label"] boolValue]?@"YES":@"NO"] action:@"label" y:y];y+=34;
  [self slider:@"Selected size" key:@"button.size" y:y low:44 high:140 value:[_layout[_selected][@"size"] floatValue]];y+=48;
