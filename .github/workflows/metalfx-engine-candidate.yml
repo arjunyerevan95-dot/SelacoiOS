@@ -1,0 +1,99 @@
+name: Selaco experimental temporal engine candidate
+# Experimental temporal, not a completed frame-generation feature.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/metalfx-temporal-framegen]
+    paths: [.github/workflows/metalfx-engine-candidate.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selaco-experimental-engine
+  cancel-in-progress: false
+
+jobs:
+  arm64-iphoneos-savegame-receiver:
+    name: full-engine iOS upstream API title candidate
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      SELACO_IOS_AUDIO_CANDIDATE: "1"
+      SELACO_IOS_SAVES_CANDIDATE: "1"
+      SELACO_METALFX_EXPERIMENTAL_BUILD: "1"
+    steps:
+      - name: Check out SelacoiOS
+        uses: actions/checkout@v4
+
+      - name: Select iOS26 SDK
+        run: |
+          selected=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+          test -n "$selected"
+          sudo xcode-select -s "$selected/Contents/Developer"
+          xcodebuild -version
+
+      - name: Compile MetalFX API snapshot
+        run: bash scripts/metalfx-sdk-compile.sh
+
+      - name: Validate build inputs
+        run: |
+          bash -n scripts/m4-title-menu-compile-probe.sh
+          bash -n scripts/m4-title-menu-app-artifact-probe.sh
+          python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
+          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_policy_test.cpp -o /tmp/selaco-touch-policy
+          /tmp/selaco-touch-policy
+          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_binding_test.cpp -o /tmp/selaco-touch-binding
+          /tmp/selaco-touch-binding
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/touch_stubs -Ioverlays/gzselaco-ios tests/touch_input_test.cpp overlays/gzselaco-ios/i_touch_input.cpp -o /tmp/selaco-touch-input
+          /tmp/selaco-touch-input
+
+      - name: Build and validate M4M upstream API diagnostic candidate
+        run: |
+          real_mktemp="$(command -v mktemp)"
+          shim_dir="${GITHUB_WORKSPACE}/build/m4-title-menu-shims"
+          controlled_root="${GITHUB_WORKSPACE}/build/work/m4-title-menu-app/tmp"
+          mkdir -p "${shim_dir}" "${controlled_root}"
+          cp scripts/m0-controlled-mktemp.sh "${shim_dir}/mktemp"
+          chmod +x "${shim_dir}/mktemp"
+          export SELACOIOS_REAL_MKTEMP="${real_mktemp}"
+          export SELACOIOS_CONTROLLED_TMP_ROOT="${controlled_root}"
+          export PATH="${shim_dir}:${PATH}"
+          bash scripts/m4-title-menu-app-artifact-probe.sh
+
+      - name: Record workflow identity
+        if: always()
+        run: |
+          mkdir -p build/evidence/m4-title-menu-app
+          {
+            echo "tested_head=${GITHUB_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
+            echo "stable_files_container=SelacoiOS Engine Init"
+            echo "bundle_version=0.9.7(27)"
+            echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
+            echo "diagnostic_scope=experimental_supported_temporal_not_framegen"
+            echo "job_id_available_after_run=true"
+          } > build/evidence/m4-title-menu-app/workflow-identity.txt
+
+      - name: Preserve M4M upstream API evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selaco-experimental-temporal-evidence
+          path: |
+            build/evidence/m4-title-menu-app
+            build/evidence/m4-title-menu-compile
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Preserve updated Engine Init IPA
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selaco-experimental-temporal-unsigned-ipa
+          path: build/artifacts/m4-title-menu-app/Selaco-engine-init-probe-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

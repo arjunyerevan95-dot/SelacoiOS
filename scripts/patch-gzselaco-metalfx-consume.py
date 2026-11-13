@@ -104,7 +104,7 @@ edit(p,'\tDeleteFrameObjects(uploadOnly);','''    // Existing fences above cover
     if (!uploadOnly) fb->GetPostprocess()->RetireMetalFX();
 \tDeleteFrameObjects(uploadOnly);''')
 p='src/CMakeLists.txt'
-edit(p,'\tcommon/platform/ios/i_metalfx_interop.mm )','\tcommon/platform/ios/i_metalfx_interop.mm\n\tcommon/platform/ios/i_metalfx_backend.mm )')
+edit(p,'\tcommon/platform/ios/i_metalfx_interop.mm\n','\tcommon/platform/ios/i_metalfx_interop.mm\n\tcommon/platform/ios/i_metalfx_backend.mm\n')
 edits[p]+='\nset_source_files_properties(common/platform/ios/i_metalfx_backend.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")\n'
 for p,s in edits.items():(root/p).write_text(s)
 for name in ['i_metalfx_backend.h','i_metalfx_backend.mm']:

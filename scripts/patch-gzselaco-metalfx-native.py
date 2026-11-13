@@ -8,7 +8,7 @@ root=Path(sys.argv[1]);repo=Path(__file__).resolve().parents[1]
 cmake=root/'src/CMakeLists.txt';s=cmake.read_text()
 old='\tcommon/platform/ios/i_touch_view.mm )'
 assert s.count(old)==1, 'Run existing iOS touch patch first; exact CMake anchor missing'
-s=s.replace(old,'\tcommon/platform/ios/i_touch_view.mm\n\tcommon/platform/ios/i_metalfx_bridge.mm\n\tcommon/platform/ios/i_metalfx_interop.mm )')
+s=s.replace(old,'\tcommon/platform/ios/i_metalfx_bridge.mm\n\tcommon/platform/ios/i_metalfx_interop.mm\n\tcommon/platform/ios/i_touch_view.mm )')
 # Weak linkage preserves launch compatibility on systems without MetalFX.
 old='-framework CoreMotion"'
 assert s.count(old)==1, 'Expected iOS framework linker anchor'

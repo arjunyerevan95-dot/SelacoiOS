@@ -19,6 +19,7 @@ patches=[
  'patch-gzselaco-temporal-candidate.py',
  'patch-gzselaco-temporal-fallback.py',
  'patch-gzselaco-early-frame-limit.py',
+ 'patch-gzselaco-metalfx-test-launcher.py',
 ]
 for name in patches:
  subprocess.run([sys.executable,str(repo/'scripts'/name),str(root)],check=True)

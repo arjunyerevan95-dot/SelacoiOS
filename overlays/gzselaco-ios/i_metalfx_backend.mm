@@ -26,6 +26,7 @@ struct IOSMetalFXBackend {
     uint32_t width=0,height=0,outWidth=0,outHeight=0;
     // Keep completion-handler storage alive without capturing the C++ owner.
     std::shared_ptr<std::atomic<bool>> failed=std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<std::atomic<unsigned>> completions=std::make_shared<std::atomic<unsigned>>(0);
     ~IOSMetalFXBackend() {
         IOSMetalFXDestroy(bridge); IOSMetalFXInteropDestroy(interop);
         if(ready) vkDestroySemaphore(vk->device,ready,nullptr);
@@ -148,7 +149,10 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     f.flushProducer(f.user);
     if(!Submit(d,p->ready,value,true)){p->failed->store(true);I_FatalError("MetalFX producer timeline submit failed; unsafe to continue rendering");}
     auto failed=p->failed;
+    auto completions=p->completions;
     [cb addCompletedHandler:^(id<MTLCommandBuffer> completed){
+        if(completed.status==MTLCommandBufferStatusCompleted && completions->fetch_add(1)==0)
+            std::fputs("Selaco MetalFX temporal: first GPU completion confirmed\n",stderr);
         if(completed.status==MTLCommandBufferStatusError){
             failed->store(true);
             // The GPU signal may not execute on error. Do not leave the Vulkan
@@ -209,7 +213,10 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
     f.flushProducer(f.user);
     if(!Submit(d,p->ready,value,true)){p->failed->store(true);I_FatalError("MetalFX framegen producer submit failed");}
     auto failed=p->failed;
+    auto completions=p->completions;
     [cb addCompletedHandler:^(id<MTLCommandBuffer> completed){
+        if(completed.status==MTLCommandBufferStatusCompleted && completions->fetch_add(1)==0)
+            std::fputs("Selaco MetalFX interpolation: first GPU completion confirmed\n",stderr);
         if(completed.status==MTLCommandBufferStatusError){failed->store(true);
             std::fputs("MetalFX framegen GPU failure: terminating instead of waiting on an unsignalled timeline",stderr);std::abort();}
     }];

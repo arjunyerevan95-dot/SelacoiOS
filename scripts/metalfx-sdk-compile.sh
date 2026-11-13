@@ -23,7 +23,7 @@ done
 for name in vulkanswapchain vulkandevice vulkaninstance vulkanbuilders; do
   xcrun --sdk iphoneos clang++ "${flags[@]}" "$e/libraries/ZVulkan/src/$name.cpp" -o "$out/$name.o" || failed=1
 done
-for name in temporal_history temporal_primitive_history temporal_present_pacer temporal_sprite_runtime temporal_view_history; do
+for name in temporal_history temporal_primitive_history temporal_present_pacer temporal_sprite_runtime temporal_view_history temporal_model_history temporal_coverage_gate; do
   clang++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios "tests/${name}_test.cpp" -o "$out/$name"
   "$out/$name"
 done
