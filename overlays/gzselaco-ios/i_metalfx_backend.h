@@ -52,3 +52,6 @@ struct IOSMetalFXVkInterpolationFrame : IOSMetalFXVkFrame {
 // Does not acquire/present a drawable or update caller's history. False => use real
 // frame only and release presentation reservation. Fence retirement rules above apply.
 bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&,VulkanDevice*,const IOSMetalFXVkInterpolationFrame&);
+
+// Same Core Animation monotonic epoch used by MoltenVK display timing.
+uint64_t IOSMetalFXPresentationTimeNS();

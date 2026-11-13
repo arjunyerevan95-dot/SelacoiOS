@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#include <cmath>
+#import <QuartzCore/QuartzCore.h>
 #include "engineerrors.h"
 #if !__has_feature(objc_arc)
 #error MetalFX backend requires ARC
@@ -251,4 +253,9 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
     if(!Submit(d,p->done,value,false)){p->failed->store(true);I_FatalError("MetalFX framegen consumer submit failed");}
     p->lastInterpolatedFrame=f.currentFrameId;
     return true;
+}
+
+uint64_t IOSMetalFXPresentationTimeNS() {
+    const double ns=CACurrentMediaTime()*1.0e9;
+    return std::isfinite(ns) && ns>0 && ns<double(UINT64_MAX) ? uint64_t(ns) : 0;
 }

@@ -9,6 +9,23 @@ root=Path(sys.argv[1]);edits={}
 def edit(rel,old,new):
  p=root/rel;s=edits.get(p,p.read_text());assert s.count(old)==1,(rel,old[:60]);edits[p]=s.replace(old,new)
 b='src/common/rendering/'
+edit(b+'hwrenderer/data/hw_motion_diagnostic.h',
+ 'struct SelacoMotionFrameMetadata { float jitterX=0, jitterY=0; bool reset=true, complete=false, framegenComplete=false; };',
+ 'struct SelacoMotionFrameMetadata { float jitterX=0, jitterY=0; bool reset=true, complete=false, framegenComplete=false; float nearPlane=0,farPlane=0,verticalFovDegrees=0; bool projectionValid=false; };')
+edit('src/rendering/hwrenderer/hw_entrypoint.cpp',
+ '\t\tdi->VPUniforms.mProjectionMatrix = eye.GetProjection(fov, ratio, fovratio * inv_iso_dist, iso_ortho);',
+ '\t\tdi->VPUniforms.mProjectionMatrix = eye.GetProjection(fov, ratio, fovratio * inv_iso_dist, iso_ortho);\n'
+ '        if(mainview && toscreen) {\n'
+ '            auto& metadata=SelacoMotionMetadataStorage();\n'
+ '            metadata.projectionValid=eyeCount==1 && eye.mShiftFactor==0 && !iso_ortho;\n'
+ '            metadata.nearPlane=screen->GetZNear();metadata.farPlane=screen->GetZFar();\n'
+ '            metadata.verticalFovDegrees=float(2*RAD2DEG(atan(tan(DEG2RAD(fov)/2)/fovratio)));\n'
+ '        }')
+edit('src/rendering/hwrenderer/hw_entrypoint.cpp',
+ '            SelacoMotionMetadataStorage() = {jx,jy,!motionHistory,false};',
+ '            auto& frameMeta=SelacoMotionMetadataStorage();\n'
+ '            frameMeta.jitterX=jx;frameMeta.jitterY=jy;frameMeta.reset=!motionHistory;\n'
+ '            frameMeta.complete=false;frameMeta.framegenComplete=false;')
 edit(b+'hwrenderer/postprocessing/hw_postprocess.h','\tvoid Run(PPRenderState *renderstate, FString target);','\tvoid Run(PPRenderState *renderstate, FString target);\n\tbool HasEnabled(FString target);')
 edit(b+'hwrenderer/postprocessing/hw_postprocess.cpp','void PPCustomShaders::CreateShaders()','''bool PPCustomShaders::HasEnabled(FString target)
 {
@@ -73,7 +90,7 @@ bool VkPostprocess::CaptureFramegenClean(int fixedcm,float flash,int width,int h
  const char* option=std::getenv("SELACO_IOS_METALFX_FRAMEGEN");
  const auto meta=SelacoMotionMetadata();
  const auto serial=SelacoMotionRuntime::Get().serial;
- if(!option || std::strcmp(option,"1") || !temporalConsumed || !meta.complete ||
+ if(!option || std::strcmp(option,"1") || !temporalConsumed || !meta.complete || !meta.projectionValid ||
     !fb->iosSceneScaled || fb->GetBuffers()->GetSceneSamples()!=VK_SAMPLE_COUNT_1_BIT ||
     hw_postprocess.customShaders.HasEnabled("scene") || hw_postprocess.customShaders.HasEnabled("screen")) {
   framegenPreviousSerial=0;return false;
