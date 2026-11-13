@@ -1,0 +1,25 @@
+name: Selaco MetalFX bounded SDK compile
+on:
+  push:
+    branches: [feature/metalfx-temporal-framegen]
+    paths: [.github/workflows/metalfx-sdk-compile.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: selaco-metalfx-sdk
+  cancel-in-progress: false
+jobs:
+  native-api:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select iOS26 toolchain
+        run: |
+          selected=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort -V | tail -1)
+          test -n "$selected"
+          sudo xcode-select -s "$selected/Contents/Developer"
+          xcodebuild -version
+      - name: Compile native API and Vulkan integration
+        run: bash scripts/metalfx-sdk-compile.sh

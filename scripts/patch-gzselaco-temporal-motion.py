@@ -25,6 +25,9 @@ inline bool SelacoMotionDiagnostic() {
 #endif
 }
 // Camera-only raster diagnostic: intentionally never a complete motion field.
+struct SelacoMotionFrameMetadata { float jitterX=0, jitterY=0; bool reset=true, complete=false, framegenComplete=false; };
+inline SelacoMotionFrameMetadata& SelacoMotionMetadataStorage() { static SelacoMotionFrameMetadata m; return m; }
+inline SelacoMotionFrameMetadata SelacoMotionMetadata() { return SelacoMotionMetadataStorage(); }
 inline bool SelacoMotionComplete() { return false; }
 '''
 edit(base+'hwrenderer/data/hw_renderstate.h','#include "vectors.h"','#include "vectors.h"\n#include "hw_motion_diagnostic.h"')
@@ -50,7 +53,7 @@ edit(p,anchor,anchor+'''
         di->VPUniforms.mPreviousProjectionMatrix = motionHistory ? motionPrevProjection : di->VPUniforms.mProjectionMatrix;
         di->VPUniforms.mPreviousViewMatrix = motionHistory ? motionPrevView : di->VPUniforms.mViewMatrix;
         if (motionActive) {
-            di->vpIndex = screen->mViewpoints->SetViewpoint(RenderState, &di->VPUniforms);
+            SelacoMotionMetadataStorage() = {0.f,0.f,!motionHistory,false};\n            di->vpIndex = screen->mViewpoints->SetViewpoint(RenderState, &di->VPUniforms);
             static bool motionAnnounced = false;
             if (!motionAnnounced) { Printf("Selaco motion MRT: CAMERA-ONLY DIAGNOSTIC; completeMotion=0; temporal/framegen unavailable\\n"); motionAnnounced = true; }
         }

@@ -104,3 +104,13 @@ Validation performed: Python syntax, exact source-anchor application to pinned s
 
 Additional compatibility check: existing patch-gzselaco-scene-scale.py followed by temporal-motion patch applied successfully to isolated pinned source; source-contract checks and diff check pass. Full cumulative platform patch stack and native compilation remain unverified.
 
+
+## Moving billboard and portal-camera runtime hooks (2026-11-13)
+
+patch-gzselaco-temporal-sprites.py applies after temporal-motion. It now captures previous rendered world-space billboard corners in HWSprite::CreateVertices, with actor lifetime generation, texture/UV appearance and fixed quad-topology matching. A sidecar generation registry is explicitly forgotten from DObject destruction, preventing simple address reuse from inheriting history. Per-sprite draw temporarily uploads previous corners and vertex-base/validity in viewpoint UBO; GLSL uses gl_VertexIndex to select the corresponding previous world corner. The original viewpoint binding is restored after each draw. Duplicate/split submissions, particles and portal sprites are rejected; model draws explicitly reject because previous bone/morph data is absent. This is actual generated runtime source, but has not been compiled as the full engine or validated on-device.
+
+patch-gzselaco-temporal-views.py adds per-recursion-path previous camera matrices at SetupView. Keys preserve the ordered portal source chain rather than hashing it; history resets on main-camera/time discontinuity and commits after completed main-scene processing. This makes portal camera matrices available, but final portal depth correspondence and moving portal sprites remain unsupported: portal rendering still marks coverage rejected. Portal source lifetime across map reload needs final scene-epoch reset work.
+
+Public metadata in hw_motion_diagnostic.h is SelacoMotionMetadata(): jitterX/jitterY in input pixels (currently both zero, no jitter implementation), reset, complete, and framegenComplete. Both completeness fields remain false. Framegen completeness is separate because post-upscale weapon drawing before tone mapping is not represented in world velocity; hiding ordinary Draw2D HUD alone does not fix that.
+
+Validation: new sprite-runtime and view-history C++ tests compiled and executed on Legion with MSVC C++17 /W4 /WX. They cover real previous corners, lifetime generation changes, duplicate capture, resets, ordered portal keys and missing paths. Exact pinned-source patch application in scene-scale -> temporal-motion -> temporal-sprites -> temporal-views order and source-wiring checks pass. These checks are not native engine/shader compilation or GPU evidence. No workflow edits, pushes or build dispatch.
