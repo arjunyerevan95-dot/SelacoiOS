@@ -16,6 +16,8 @@ struct IOSMetalFXConfig {
     MTLPixelFormat colorFormat, depthFormat, motionFormat, outputFormat;
     MTLPixelFormat interpolationColorFormat, uiFormat;
     bool frameInterpolation;
+    // Disable if upstream exposure is already applied to the input color.
+    bool autoExposure = true;
 };
 struct IOSMetalFXFrame {
     id<MTLTexture> color, depth, motion, output;

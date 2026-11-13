@@ -77,3 +77,19 @@ Reset temporal and interpolation history on new map/load, camera change or telep
 Required fixtures: stationary camera/moving sprite; moving camera/static scene; animated model with stationary root; moving door; billboard rotation; portal/mirror; transparent smoke; HUD text/weapon; resize and resume. Debug markers should include history reset reason, scene/depth/motion extents, jitter, consecutive frame serials, motion path coverage and whether temporal/interpolation actually encoded.
 
 Competing hypothesis to test: apparent ghosting may be wrong vector sign/scale/jitter rather than insufficient object history. A static-world pan distinguishes convention errors; stationary-camera moving actors distinguish missing object vectors. Camera-only depth reprojection can be a diagnostic stage, but is not a production-complete solution for Selaco.
+
+## Implemented reusable primitive cache (2026-11-13)
+
+`overlays/gzselaco-ios/i_temporal_primitive_history.h` now implements the CPU-side matching/storage component. This is NOT a renderer velocity integration. Matching design was adapted from RTGL `Source/Metal/MetalScene.mm` at1919834a514e15ed14cceaf716f4f572464758c9; its MIT notice is retained in `RTGL-MIT-LICENSE.txt`.
+
+The key includes object ID, lifetime generation, view/portal-path ID and primitive ID. Geometry stores owning post-deformation world positions, index connectivity, topology revision and appearance revision. It refuses invalid indices/nonfinite positions, unmatched identity, changed connectivity/topology/appearance and ambiguous duplicate IDs. Begin/Capture/Commit separates actually completed render history from aborted work. Missing primitives expire each committed frame; serial gaps reset history. Byte and entry bounds limit retained CPU data. Callers must check FrameUnambiguous before encoding vectors because a later duplicate invalidates earlier matches.
+
+`tests/temporal_primitive_history_test.cpp` covers previous rendered positions, result lifetime, identity components, same-count topology changes, appearance, duplicate submission, serial gaps, disappearing objects, invalid input and memory budget. Validation: compiled and executed successfully on Legion using MSVC 14.44 /std:c++17 /EHsc /W4; parent independently compiled with C++17 -Wall -Wextra -Werror and executed on cloud. No iOS or device validation is claimed.
+
+Still required runtime hooks:
+- Allocate stable object generations and primitive/view keys in Selaco sprite/model/world/portal producers. GZDoom RT routes unique IDs through rtstate into RgMeshInfo (rt_main.cpp around1602), but those IDs cannot simply be assumed present or sufficiently generation-safe in Selaco.
+- Extract current post-deformation model positions (or use GPU previous-pose buffers instead of this CPU cache); preserve sprite correspondence and moving-world surfaces. This header does not evaluate bones or reconstruct positions.
+- Upload matching previous world positions alongside current vertices and write their projected difference into a velocity render target. Prior/current unjittered camera transforms remain external.
+- Aggregate any rejection into reactive/history validity coverage; never interpret a missing vector as zero motion. Caller must mark unsupported particle/portal/transparent paths explicitly.
+- Commit only after frame construction succeeds; invalidate on discontinuities. GPU resource retirement and upload ring lifetime remain external responsibilities.
+

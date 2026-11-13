@@ -51,7 +51,7 @@ IOSMetalFXStatus IOSMetalFXCreate(id<MTLDevice> device, const IOSMetalFXConfig& 
         td.outputWidth = c.outputWidth; td.outputHeight = c.outputHeight;
         td.colorTextureFormat = c.colorFormat; td.depthTextureFormat = c.depthFormat;
         td.motionTextureFormat = c.motionFormat; td.outputTextureFormat = c.outputFormat;
-        td.autoExposureEnabled = YES;
+        td.autoExposureEnabled = c.autoExposure;
         b->temporal = [td newTemporalScalerWithDevice:device];
         if (!b->temporal) { delete b; return IOSMetalFXStatus::CreationFailed; }
         b->usage.color = b->temporal.colorTextureUsage; b->usage.depth = b->temporal.depthTextureUsage;
