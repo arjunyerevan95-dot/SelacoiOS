@@ -1,4 +1,5 @@
 name: Selaco MetalFX bounded SDK compile
+# Collect all native compiler diagnostics; corrected callback literal.
 on:
   push:
     branches: [feature/metalfx-temporal-framegen]

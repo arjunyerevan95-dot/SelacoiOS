@@ -16,14 +16,16 @@ flags=(-std=c++17 -target arm64-apple-ios16.0 -isysroot "$sdk" -c
   -Ioverlays/gzselaco-ios -I"$e/libraries/ZVulkan/include"
   -I"$e/libraries/ZVulkan/include/zvulkan" -I"$e/libraries/ZVulkan/src"
   -I"$e/src/common/utility")
+failed=0
 for name in i_metalfx_bridge i_metalfx_interop i_metalfx_backend; do
-  xcrun --sdk iphoneos clang++ "${flags[@]}" -fobjc-arc "overlays/gzselaco-ios/$name.mm" -o "$out/$name.o"
+  xcrun --sdk iphoneos clang++ "${flags[@]}" -fobjc-arc "overlays/gzselaco-ios/$name.mm" -o "$out/$name.o" || failed=1
 done
 for name in vulkanswapchain vulkandevice vulkaninstance vulkanbuilders; do
-  xcrun --sdk iphoneos clang++ "${flags[@]}" "$e/libraries/ZVulkan/src/$name.cpp" -o "$out/$name.o"
+  xcrun --sdk iphoneos clang++ "${flags[@]}" "$e/libraries/ZVulkan/src/$name.cpp" -o "$out/$name.o" || failed=1
 done
 for name in temporal_history temporal_primitive_history temporal_present_pacer temporal_sprite_runtime temporal_view_history; do
   clang++ -std=c++17 -Wall -Wextra -Werror "tests/${name}_test.cpp" -o "$out/$name"
   "$out/$name"
 done
+[[ $failed == 0 ]] || exit 1
 printf 'iOS SDK %s: native MetalFX and patched Vulkan compile succeeded; NOT linked/device tested\n' "$version"

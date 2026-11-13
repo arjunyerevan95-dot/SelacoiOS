@@ -130,7 +130,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     f.flushProducer(f.user);
     if(!Submit(d,p->ready,value,true)){p->failed->store(true);I_FatalError("MetalFX producer timeline submit failed; unsafe to continue rendering");}
     auto failed=p->failed;
-    '[cb addCompletedHandler:^(id<MTLCommandBuffer> completed){
+    [cb addCompletedHandler:^(id<MTLCommandBuffer> completed){
         if(completed.status==MTLCommandBufferStatusError){
             failed->store(true);
             // The GPU signal may not execute on error. Do not leave the Vulkan
@@ -139,7 +139,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
             std::fputs("MetalFX GPU failure: terminating instead of waiting on an unsignalled timeline\\n",stderr);
             std::abort();
         }
-    }];'
+    }];
     [cb commit];
     // A failed Vulkan submit means device loss/error, not a valid fallback frame.
     if(!Submit(d,p->done,value,false)){p->failed->store(true);I_FatalError("MetalFX consumer timeline submit failed; unsafe to continue rendering");}
