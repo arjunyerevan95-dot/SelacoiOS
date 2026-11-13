@@ -49,7 +49,7 @@ edit(p,anchor,'''    // A rejected/failed temporal frame was already rasterized 
 p='src/rendering/hwrenderer/hw_entrypoint.cpp'
 edit(p,"const bool useJitter=jitterOption && jitterOption[0]=='1' && jitterOption[1]==0;",
 "const bool useJitter=jitterOption && jitterOption[0]=='1' && jitterOption[1]==0 && SelacoMotionJitterAllowed();")
-edit(p,'[&]() { di->DrawEndScene2D(mainvp.sector, RenderState); }','[&]() { di->VPUniforms.mMotionJitter={0.f,0.f,0.f,0.f}; di->vpIndex=screen->mViewpoints->SetViewpoint(RenderState,&di->VPUniforms); di->DrawEndScene2D(mainvp.sector, RenderState); }')
+edit(p,'[&]() { di->DrawEndScene2D(mainvp.sector, RenderState); }','[&]() { if(SelacoMotionDiagnostic()){di->VPUniforms.mMotionJitter={0.f,0.f,0.f,0.f}; di->vpIndex=screen->mViewpoints->SetViewpoint(RenderState,&di->VPUniforms);} di->DrawEndScene2D(mainvp.sector, RenderState); }')
 p='src/common/rendering/hwrenderer/data/hw_motion_diagnostic.h'
 edit(p,'struct SelacoMotionFrameMetadata {','inline bool& SelacoMotionJitterAllowed(){static bool allowed=false;return allowed;}\nstruct SelacoMotionFrameMetadata {')
 p='src/common/rendering/vulkan/system/vk_renderdevice.cpp'
