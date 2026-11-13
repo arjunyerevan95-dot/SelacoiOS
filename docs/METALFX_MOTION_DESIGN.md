@@ -122,3 +122,13 @@ New additive patch-gzselaco-temporal-models.py captures previous model transform
 CPU history test passed MSVC C++17 /W4 /WX. Patcher applied to the isolated fixture. Full C++/shader/native compilation is pending; not included in the earlier SDK checkpoint.
 
 Remaining whole-world blocker is concrete: hw_vertexbuilder.cpp UpdatePlaneVertices rewrites persistent plane vertices in place, and dynamic walls/polyobjects regenerate geometry without prior vertex streams. Correct sprite/model vectors alone do not establish complete scene coverage. Frame-level rejection can cover observed UpdatePlaneVertices/AddPolyobjs paths, but unknown shader effects, transparent/depth coverage and jitter/reset requirements still prevent safely enabling a full temporal path today.
+
+## Reactive mask, jitter and observed world rejection
+
+New additive patches temporal-world-guards and temporal-reactive-jitter attach source hooks for observed in-place sector-plane updates, polyobject rendering and unsupported flat hacks/translucency. Those paths reject coverage rather than pretending static-camera motion is complete. No previous wall/plane vertex reconstruction is implemented.
+
+Reactive source plumbing allocates SceneReactive (R8_UNORM) as fifth MRT, adds matching format/framebuffer/clear slots and MAX-union blending. Main material shader marks sprites, invalid model history and alpha-blended pixels conservatively; nondefault/user material shaders receive a reactive define. Special-effect draws that may not write all outputs reject coverage. This mask is a temporal history hint, not substitute depth/velocity for frame interpolation.
+
+Optional SELACO_TEMPORAL_JITTER=1 applies actual input-pixel Halton jitter to raster clip coordinates after unjittered motion outputs have been computed. Previous/current matrices remain unjittered; metadata reports input-pixel offsets. Default off while full consumption/coverage is unfinished; enabling jitter alone may visibly shimmer without temporal resolve. Runtime output orientation and Apple sign convention still require validation.
+
+Source-contract tests and patch application pass; full engine/shader/device validation remains pending. Before allowing supported-frame temporal, finalize coverage at scene resolve, remember rejected frames and force history reset on recovery (camera history otherwise differs from last MetalFX input), audit unsupported draw paths and verify every mask pixel. Framegen remains separately incomplete due post-upscale weapon coverage.
