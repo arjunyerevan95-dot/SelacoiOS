@@ -132,3 +132,12 @@ Reactive source plumbing allocates SceneReactive (R8_UNORM) as fifth MRT, adds m
 Optional SELACO_TEMPORAL_JITTER=1 applies actual input-pixel Halton jitter to raster clip coordinates after unjittered motion outputs have been computed. Previous/current matrices remain unjittered; metadata reports input-pixel offsets. Default off while full consumption/coverage is unfinished; enabling jitter alone may visibly shimmer without temporal resolve. Runtime output orientation and Apple sign convention still require validation.
 
 Source-contract tests and patch application pass; full engine/shader/device validation remains pending. Before allowing supported-frame temporal, finalize coverage at scene resolve, remember rejected frames and force history reset on recovery (camera history otherwise differs from last MetalFX input), audit unsupported draw paths and verify every mask pixel. Framegen remains separately incomplete due post-upscale weapon coverage.
+
+## Supported-frame candidate and rejection fallback (unverified on device)
+The final source order is motion, sprites, views, models, world guards, reactive/jitter, MetalFX consume, supported-frame candidate, Vulkan inverse-jitter fallback. The master script enforces this ordering.
+
+The candidate decides eligibility only at the scene resolve boundary after observed draw coverage. It records history only after a successful backend consume, resetting on gaps, failures, epoch changes and extent changes. Engine view interpolation resets increment the epoch. Frame-generation completeness remains false.
+
+Jitter is allowed only for the scaled fullscreen single-sample Vulkan path. A rejected/failed temporal frame uses an independent Vulkan linear scene sampling pass, source position plus the recorded pixel jitter, clamped to the crop's half-texel interior. This removes the raster translation even without MetalFX availability; it is not temporal reconstruction. All pinned scene vertex shader entries use main.vp. Device testing must still verify orientation, edge behavior and artifacts.
+
+Runtime opt-in requires SELACO_MOTION_DIAGNOSTIC=1, SELACO_TEMPORAL_JITTER=1 and SELACO_TEMPORAL_SUPPORTED_FRAMES=1 plus the backend's separate temporal request. None is a claim of complete game-wide support. Portals, observed moving planes/polyobjects, missing object history, changed morph topology and incomplete MRT coverage fall back. Current validations cover portable history tests and exact source patch application; native full-engine and GPU shader compilation are still required.

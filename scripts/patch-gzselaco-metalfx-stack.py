@@ -16,6 +16,8 @@ patches=[
  'patch-gzselaco-temporal-world-guards.py',
  'patch-gzselaco-temporal-reactive-jitter.py',
  'patch-gzselaco-metalfx-consume.py',
+ 'patch-gzselaco-temporal-candidate.py',
+ 'patch-gzselaco-temporal-fallback.py',
  'patch-gzselaco-early-frame-limit.py',
 ]
 for name in patches:
