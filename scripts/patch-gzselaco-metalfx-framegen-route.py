@@ -78,7 +78,7 @@ void VkPostprocess::ProcessFramegen()
  f.color=current.Image->image;f.previousColor=previous.Image->image;f.compositedColor=framegenComposite.Image->image;
  f.output=framegenGenerated.Image->image;f.depth=buffers->SceneDepthStencil.DepthOnlyView->view;
  f.motion=buffers->SceneMotionDiagnostic.Image->image;
- f.x=fb->mSceneViewport.left;f.y=fb->mSceneViewport.top;f.width=fb->mSceneViewport.width;f.height=fb->mSceneViewport.height;
+ f.x=framegenInputRect.left;f.y=framegenInputRect.top;f.width=framegenInputRect.width;f.height=framegenInputRect.height;
  f.outputWidth=buffers->GetWidth();f.outputHeight=buffers->GetHeight();
  f.jitterX=meta.jitterX;f.jitterY=meta.jitterY;f.reset=false;
  // Local certification applies only to this split clean pair, not unsplit output.

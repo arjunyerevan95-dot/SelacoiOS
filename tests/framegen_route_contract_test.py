@@ -8,6 +8,7 @@ for gate in ['!meta.complete','!meta.projectionValid','!framegenPairReady','meta
  assert gate in p,gate
 assert p.index('PairDrainEpoch()')<p.index('std::getenv')
 assert p.index('CollectPresentTimings()')<p.index('std::getenv')
+assert 'f.x=framegenInputRect.left' in p and 'f.width=framegenInputRect.width' in p
 assert 'IOSMetalFXPresentationTimeNS()' in p and 'I_GetTimeNS' not in p
 assert p.index('Reserve(')<p.index('IOSMetalFXBackendInterpolate(')<p.index('PresentIntermediate(')
 callback=p.split('auto result=commands->PresentIntermediate([&]{',1)[1].split('},pair.generatedNS',1)[0]
