@@ -24,14 +24,18 @@ if len(sys.argv)>1:
     effects=patcher.split('const FEffectShader effectshaders[] =',1)[1].split('};',1)[0]
     paths=re.findall(r'"(shaders/[^" ]+\.vp)"',effects)
     assert len(paths)==5 and set(paths)=={'shaders/glsl/main.vp'},paths
-    shader=(root/'wadsrc/static/shaders/glsl/main.vp').read_text()
+    shader_path=root/'wadsrc/static/shaders/glsl/main.vp'
+    if not shader_path.exists():shader_path=reference/'wadsrc/static/shaders/glsl/main.vp'
+    shader=shader_path.read_text()
     main=shader.split('void main()',1)[1].split('#if !defined(SIMPLE)',1)[0]
     assert not re.search(r'\breturn\b',main), 'early exit requires jitter path audit'
     # main.vp jitter must sit with the common Vulkan coordinate conversion,
     # outside SIMPLE/material-specific conditionals. All five effects share it.
     if 'MotionJitter.xy' in shader:
         assert 'gl_Position.xy += MotionJitter.xy * gl_Position.w;' in main
-    viewport=(root/'src/common/rendering/vulkan/renderer/vk_renderstate.cpp').read_text()
+    viewport_path=root/'src/common/rendering/vulkan/renderer/vk_renderstate.cpp'
+    if not viewport_path.exists():viewport_path=reference/'src/common/rendering/vulkan/renderer/vk_renderstate.cpp'
+    viewport=viewport_path.read_text()
     assert 'viewport.height = (float)mViewportHeight;' in viewport
     fragment=root/'wadsrc/static/shaders/pp/motionfallback.fp'
     if fragment.exists():
