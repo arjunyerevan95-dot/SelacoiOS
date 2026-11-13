@@ -29,3 +29,26 @@ Remaining integration: preserve post-tonemap HUD-less real textures, render HUD
 separately, encode interpolation, acquire/submit two images with independent
 semaphores, query timing feedback, and drain safely across resize/background.
 Frame generation itself does not reduce input latency and adds historical delay.
+
+## Paired submission lifecycle
+`PresentIntermediate` returns Rejected (no successful acquire), Submitted (timed
+pair queued, visibility still unknown), or Draining (successful acquire consumed
+but reservation became invalid). It checks swapchain generation and refresh timing
+before and after acquisition. Invalid acquired output is replaced by an ordinary
+real-frame draw, submitted and presented without timing; the binary acquire signal
+is never abandoned. The final real acquire rechecks the generation and timing too.
+
+QueuePresent returns VkResult through both layers. Suboptimal/out-of-date/lost
+results invalidate the pair rather than promise future timing feedback. The caller
+must always complete ordinary WaitForCommands(true) after Submitted or Draining.
+An exceptional invalid pair increments PairDrainEpoch ONLY after normal GPU fence
+retirement and a successful device-queue drain. The pacing owner compares that epoch
+and cancels the stale reservation; never reinterpret cancellation as display proof.
+Successful pairs continue to retire exclusively through real presentation feedback.
+This code does not implement a second CAMetalLayer owner or enable frame generation.
+
+Validated: exact-source materialization, source-contract fixture and MSVC compilation
+of patched ZVulkan swapchain. Engine command-manager Apple compilation and real WSI
+lost-surface/recreation behavior still need validation. Device idle is not evidence
+that any frame became visible; per-image presentation semaphore lifetime remains
+managed by the existing swapchain implementation.
