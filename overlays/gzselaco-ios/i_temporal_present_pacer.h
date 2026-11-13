@@ -23,21 +23,31 @@ public:
         if (lastReal>now && lastReal<generated) generated=lastReal+refresh;
         if (generated>now+refresh*2) return false;
         out={generated,generated+refresh,nextID,nextID+1};
-        nextID+=2; pending=out; return true;
+        nextID+=2; pending=out; submitted=false; return true;
+    }
+    bool MarkSubmitted(const Pair& pair) {
+        if(!pending.realID || pair.realID!=pending.realID || pair.generatedID!=pending.generatedID)return false;
+        submitted=true;return true;
+    }
+    // Only before any swapchain acquisition/submission for this reservation.
+    bool CancelUnsubmitted(const Pair& pair) {
+        if(submitted || !pending.realID || pair.realID!=pending.realID || pair.generatedID!=pending.generatedID)return false;
+        pending={};return true;
     }
     // Call only after actual display-timing feedback reports the real ID.
     // GPU command completion alone is not evidence that a drawable was shown.
     bool Retire(uint32_t realID, uint64_t actualTime)
     {
-        if (!pending.realID || realID!=pending.realID) return false;
-        lastReal=actualTime; pending={}; return true;
+        if (!submitted || !pending.realID || realID!=pending.realID) return false;
+        lastReal=actualTime; pending={};submitted=false; return true;
     }
     // Abort requires caller to retire/cancel submitted presentation resources.
     // Never use this merely to free the capacity for another in-flight pair.
-    void ResetAfterDrain() { pending={}; lastReal=0; }
+    void ResetAfterDrain() { pending={}; lastReal=0;submitted=false; }
     bool HasPending() const { return pending.realID!=0; }
 private:
     Pair pending{};
+    bool submitted=false;
     uint64_t lastReal=0;
     uint32_t nextID=1;
 };
