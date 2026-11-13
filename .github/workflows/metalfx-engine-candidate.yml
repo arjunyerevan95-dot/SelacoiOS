@@ -1,5 +1,5 @@
-name: Selaco experimental temporal engine candidate
-# Experimental temporal, not a completed frame-generation feature.
+name: Selaco experimental framegen and output transition candidate
+# Guarded temporal + interpolation route; VSync drawable repair and HDR discovery.
 
 on:
   workflow_dispatch:
@@ -39,6 +39,7 @@ jobs:
 
       - name: Validate build inputs
         run: |
+          python3 tests/framegen_composition_contract_test.py
           bash -n scripts/m4-title-menu-compile-probe.sh
           bash -n scripts/m4-title-menu-app-artifact-probe.sh
           python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
@@ -72,9 +73,9 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(27)"
+            echo "bundle_version=0.9.7(28)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
-            echo "diagnostic_scope=experimental_supported_temporal_not_framegen"
+            echo "diagnostic_scope=experimental_guarded_framegen_vsync_repair_hdr_discovery"
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 
@@ -82,7 +83,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: selaco-experimental-temporal-evidence
+          name: selaco-experimental-framegen-evidence
           path: |
             build/evidence/m4-title-menu-app
             build/evidence/m4-title-menu-compile
@@ -93,7 +94,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: selaco-experimental-temporal-unsigned-ipa
+          name: selaco-experimental-framegen-unsigned-ipa
           path: build/artifacts/m4-title-menu-app/Selaco-engine-init-probe-unsigned.ipa
           if-no-files-found: error
           retention-days: 14

@@ -56,6 +56,8 @@ replacements = {
     'if [[ "${bundle_short_version}" != "0.6.0" || "${bundle_version}" != "6" ]]; then':
         'if [[ "${bundle_short_version}" != "0.9.2" || "${bundle_version}" != "22" ]]; then',
 }
+if os.environ.get("SELACO_METALFX_EXPERIMENTAL_BUILD") == "1":
+    replacements['"UIRequiresFullScreen": True,'] = '"UIRequiresFullScreen": True,\n    "CADisableMinimumFrameDurationOnPhone": True,'
 for old, new in replacements.items():
     if old not in text:
         raise SystemExit(f"Milestone 4 app probe marker changed: {old}")
@@ -63,6 +65,8 @@ for old, new in replacements.items():
 
 if os.environ.get("SELACO_IOS_AUDIO_CANDIDATE") == "1" or os.environ.get("SELACO_IOS_SAVES_CANDIDATE") == "1":
     text = text.replace('"0.9.2"', '"0.9.7"').replace('"22"', '"27"')
+if os.environ.get("SELACO_METALFX_EXPERIMENTAL_BUILD") == "1":
+    text = text.replace('"27"', '"28"')
 package_anchor = 'cp -R "${engine_init_app}" "${ipa_stage}/Payload/Selaco.app"\n'
 assert text.count(package_anchor) == 1
 text = text.replace(package_anchor, package_anchor + r'''if [[ "${SELACO_IOS_AUDIO_CANDIDATE:-0}" == 1 ]]; then

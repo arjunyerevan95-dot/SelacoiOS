@@ -19,6 +19,10 @@ patches=[
  'patch-gzselaco-temporal-candidate.py',
  'patch-gzselaco-temporal-fallback.py',
  'patch-gzselaco-early-frame-limit.py',
+ 'patch-gzselaco-metalfx-pair-present.py',
+ 'patch-gzselaco-metalfx-composition.py',
+ 'patch-gzselaco-metalfx-framegen-route.py',
+ 'patch-gzselaco-ios-output-transition.py',
  'patch-gzselaco-metalfx-test-launcher.py',
 ]
 for name in patches:

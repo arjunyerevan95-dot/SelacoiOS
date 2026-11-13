@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess,sys,tempfile
 repo=Path(__file__).resolve().parents[1]
-source=repo/'build/metalfx-candidate-full'
+source=Path(sys.argv[1]) if len(sys.argv)>1 else repo/'build/metalfx-candidate-full'
 with tempfile.TemporaryDirectory(prefix='selaco-output-') as d:
  root=Path(d)
  for rel in ['src/common/platform/ios/i_engine_renderer_handoff.mm','libraries/ZVulkan/src/vulkanswapchain.cpp']:
@@ -19,3 +19,4 @@ with tempfile.TemporaryDirectory(prefix='selaco-output-') as d:
  assert 'swapchain_layer_output' in h
  assert 'wantsExtendedDynamicRangeContent =' not in h
 print('PASS output transition source contract: successful-create ordering, optional HDR discovery, non-owning layer repair/evidence')
+
