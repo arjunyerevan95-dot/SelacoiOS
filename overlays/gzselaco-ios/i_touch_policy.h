@@ -1,6 +1,16 @@
 #pragma once
 #include <cmath>
 namespace SelacoIOS {
+// Only empty right-look touches call this; stick/button fingers never enter the gesture.
+struct LookDoubleTap {
+ double last=-1000,x=0,y=0;
+ void reset(){last=-1000;}
+ bool release(double now,double duration,double travel,double px,double py){
+  if(duration<0||duration>.25||travel>12){reset();return false;}
+  bool toggle=now-last<=.30&&std::hypot(px-x,py-y)<=36;
+  last=toggle?-1000:now;x=px;y=py;return toggle;
+ }
+};
 struct AltLatch {
  bool latched=false,suppress=false;double lastTap=-1000,pressedAt=0;
  bool press(double now,double window=.30){

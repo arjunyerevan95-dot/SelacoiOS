@@ -1,5 +1,5 @@
-name: Selaco SFX PCM and Presentation Lifetime
-# Build25: Int16 Vorbis SFX consumer contract and per-image presentation synchronization.
+name: Selaco Approved Controls and Safe Presentation
+# Build26: approved glyph layout, independent look ADS gesture and iOS safe presentation.
 
 on:
   workflow_dispatch:
@@ -30,7 +30,9 @@ jobs:
         run: |
           bash -n scripts/m4-title-menu-compile-probe.sh
           bash -n scripts/m4-title-menu-app-artifact-probe.sh
-          python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py
+          python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
+          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_policy_test.cpp -o /tmp/selaco-touch-policy
+          /tmp/selaco-touch-policy
 
       - name: Build and validate M4M upstream API diagnostic candidate
         run: |
@@ -55,7 +57,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.5(25)"
+            echo "bundle_version=0.9.6(26)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=scene_scale_native_hud_vorbis_custom_controls_isolated_saves"
             echo "job_id_available_after_run=true"

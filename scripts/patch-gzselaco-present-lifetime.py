@@ -32,3 +32,16 @@ edit(p,anchor,anchor+'''
 \t\t\tCurrentWidth, CurrentHeight, CurrentVSync, SwapChain->ImageCount());''')
 edit(p,'SwapChain->QueuePresent(PresentImageIndex, RenderFinishedSemaphore.get());','SwapChain->QueuePresent(PresentImageIndex, GetRenderFinishedSemaphore());')
 edit('src/common/rendering/vulkan/system/vk_commandbuffer.cpp','submit.AddSignal(fb->GetFramebufferManager()->RenderFinishedSemaphore.get());','submit.AddSignal(fb->GetFramebufferManager()->GetRenderFinishedSemaphore());')
+
+# iOS/MoltenVK's immediate-present path has exhibited blank/flashing frames.
+# Prefer supported mailbox; retain FIFO safely when mailbox is unavailable.
+p='libraries/ZVulkan/src/vulkanswapchain.cpp'
+edit(p,'#include "vulkanswapchain.h"', '#include "vulkanswapchain.h"\n#include <cstdio>\n#if defined(__APPLE__)\n#include <TargetConditionals.h>\n#endif')
+edit(p,'\tSelectFormat(caps, hdr);', '''
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+\tif (!vsync) presentMode = supportsMailbox ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_FIFO_KHR;
+\tstd::fprintf(stderr, "Selaco iOS presentation: requestedVSync=%d selectedMode=%d mailbox=%d immediate=%d%s\\n",
+\t\tint(vsync), int(presentMode), int(supportsMailbox), int(supportsImmediate),
+\t\t!vsync && !supportsMailbox ? " FIFO safety fallback (not uncapped)" : "");
+#endif
+\tSelectFormat(caps, hdr);''')
