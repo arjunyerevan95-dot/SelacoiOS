@@ -12,6 +12,7 @@ b='src/common/rendering/'
 edit(b+'hwrenderer/data/hw_motion_diagnostic.h',
  'struct SelacoMotionFrameMetadata { float jitterX=0, jitterY=0; bool reset=true, complete=false, framegenComplete=false; };',
  'struct SelacoMotionFrameMetadata { float jitterX=0, jitterY=0; bool reset=true, complete=false, framegenComplete=false; float nearPlane=0,farPlane=0,verticalFovDegrees=0; bool projectionValid=false; };')
+edit('src/rendering/hwrenderer/hw_entrypoint.cpp','#include <chrono>','#include <chrono>\n#include <cmath>')
 edit('src/rendering/hwrenderer/hw_entrypoint.cpp',
  '\t\tdi->VPUniforms.mProjectionMatrix = eye.GetProjection(fov, ratio, fovratio * inv_iso_dist, iso_ortho);',
  '\t\tdi->VPUniforms.mProjectionMatrix = eye.GetProjection(fov, ratio, fovratio * inv_iso_dist, iso_ortho);\n'
@@ -19,7 +20,7 @@ edit('src/rendering/hwrenderer/hw_entrypoint.cpp',
  '            auto& metadata=SelacoMotionMetadataStorage();\n'
  '            metadata.projectionValid=eyeCount==1 && eye.mShiftFactor==0 && !iso_ortho;\n'
  '            metadata.nearPlane=screen->GetZNear();metadata.farPlane=screen->GetZFar();\n'
- '            metadata.verticalFovDegrees=float(2*RAD2DEG(atan(tan(DEG2RAD(fov)/2)/fovratio)));\n'
+ '            metadata.verticalFovDegrees=float(2.0*std::atan(std::tan(double(fov)*0.008726646259971648)/double(fovratio))*57.29577951308232);\n'
  '        }')
 edit('src/rendering/hwrenderer/hw_entrypoint.cpp',
  '            SelacoMotionMetadataStorage() = {jx,jy,!motionHistory,false};',

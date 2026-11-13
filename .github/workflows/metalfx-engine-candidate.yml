@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Guarded temporal + interpolation route; VSync drawable repair and HDR discovery.
+# Guarded framegen + VSync/HDR; projection conversion uses explicit portable math.
 
 on:
   workflow_dispatch:
