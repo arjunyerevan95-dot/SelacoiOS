@@ -47,3 +47,26 @@ Temporal consumption now exports/crops the R8 SceneReactive mask and configures
 MetalFX reactive-mask input with iOS17.4 availability guards. Uses
 reactiveTextureUsage (17.4), not the newer reactiveMaskTextureUsage property.
 These later changes are not covered by the earlier successful native compile.
+
+## Backend review after b267c23
+Crop inputs now explicitly require shader-read usage and exact RG16Float motion,
+RGBA16Float scene color and R8Unorm reactive format before submitting any work.
+Frame interpolation rejects duplicate/out-of-order submitted real-frame IDs;
+explicit reset clears that sequence and suppresses the reset frame. Both endpoints
+remain single-render-thread-owned. Their producer queue submission must not race
+another submitter on the same Vulkan queue (Vulkan external synchronization).
+
+Reactive availability: descriptor reactiveMaskTextureEnabled/Format and scaler
+reactiveTextureUsage are guarded by both SDK >= iOS17.4 and runtime17.4. The similarly
+named reactiveMaskTextureUsage is iOS27-only and intentionally not used. Failure
+before producer submission permits fallback. Failure after GPU handoff is fatal,
+including completion-thread abort on Metal failure to prevent an unsignalled wait.
+
+Minimal renderer route still required: retain clean post-tonemap real-frame pair,
+render weapon/UI to a separate compositing layer, encode into a distinct exportable
+RGBA16Float output, and present generated+real through the existing Vulkan swapchain
+with actual timing feedback. Merely taking the current post-Pass2 texture is unsafe:
+it already contains weapons drawn by afterBloomDrawEndScene2D. First bounded route
+could accept only positively weapon-free scenes, render Draw2D separately, and reject
+all other frames; normal armed gameplay requires proper weapon-layer separation.
+The endpoint itself does not reserve/present swapchain images or certify this route.

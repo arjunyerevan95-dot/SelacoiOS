@@ -45,6 +45,9 @@ static id<MTLTexture> Texture(id<MTLDevice>d,uint32_t w,uint32_t h,MTLPixelForma
     td.storageMode=MTLStorageModePrivate;td.usage=u|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite;
     return [d newTextureWithDescriptor:td];
 }
+static bool Readable(id<MTLTexture> texture,MTLPixelFormat format) {
+    return texture && texture.pixelFormat==format && (texture.usage&MTLTextureUsageShaderRead)!=0;
+}
 static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool interpolation=false){
     if(!d->Instance->EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)||
        !d->EnabledFeatures.TimelineSemaphore.timelineSemaphore)return nullptr;
@@ -116,7 +119,9 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     if(IOSMetalFXInteropTexture(p->interop,e,&motion)!=IOSMetalFXInteropStatus::Ready)return false;
     e.image=f.output;if(IOSMetalFXInteropTexture(p->interop,e,&output)!=IOSMetalFXInteropStatus::Ready)return false;
     e.image=f.reactive;if(IOSMetalFXInteropTexture(p->interop,e,&reactive)!=IOSMetalFXInteropStatus::Ready)return false;
-    if(reactive.pixelFormat!=MTLPixelFormatR8Unorm||uint64_t(f.x)+f.width>reactive.width||uint64_t(f.y)+f.height>reactive.height)return false;
+    if(!Readable(reactive,MTLPixelFormatR8Unorm)||!Readable(motion,MTLPixelFormatRG16Float)||
+       !Readable(color,MTLPixelFormatRGBA16Float)||(depth.usage&MTLTextureUsageShaderRead)==0||
+       uint64_t(f.x)+f.width>reactive.width||uint64_t(f.y)+f.height>reactive.height)return false;
     if(uint64_t(f.x)+f.width>color.width||uint64_t(f.y)+f.height>color.height||
        uint64_t(f.x)+f.width>depth.width||uint64_t(f.y)+f.height>depth.height||
        uint64_t(f.x)+f.width>motion.width||uint64_t(f.y)+f.height>motion.height)return false;
@@ -149,7 +154,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
             // The GPU signal may not execute on error. Do not leave the Vulkan
             // consumer hanging, or host-signal it and present undefined pixels.
             // Termination is independent of the render thread blocked on fences.
-            std::fputs("MetalFX GPU failure: terminating instead of waiting on an unsignalled timeline\\n",stderr);
+            std::fputs("MetalFX GPU failure: terminating instead of waiting on an unsignalled timeline\n",stderr);
             std::abort();
         }
     }];
@@ -166,9 +171,11 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
     const char* opt=std::getenv("SELACO_IOS_METALFX_FRAMEGEN");
     if(p && (f.reset || !f.previousFrameValid || f.previousFrameId!=p->lastInterpolatedFrame))
         IOSMetalFXResetInterpolationHistory(p->bridge);
+    if(p && f.reset)p->lastInterpolatedFrame=0;
     if(!IOSMetalFXRequested()||!opt||std::strcmp(opt,"1")||!f.framegenComplete||!f.completeMotion||
        !f.cleanScenePair||!f.presentationReserved||!f.previousFrameValid||f.reset||
        f.previousFrameId==UINT64_MAX||f.currentFrameId!=f.previousFrameId+1||
+       (p && f.currentFrameId<=p->lastInterpolatedFrame)||
        !d||!f.flushProducer||!f.width||!f.height||!f.outputWidth||!f.outputHeight||
        !f.color||!f.previousColor||!f.ui||!f.depth||!f.motion||!f.output)return false;
     if(!p)p=Create(d,f,true);
@@ -182,7 +189,8 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
        !exportColor(f.motion,&motion)||!exportColor(f.output,&output))return false;
     e.image=VK_NULL_HANDLE;e.imageView=f.depth;e.plane=VK_IMAGE_ASPECT_DEPTH_BIT;
     if(IOSMetalFXInteropTexture(p->interop,e,&depth)!=IOSMetalFXInteropStatus::Ready)return false;
-    if(uint64_t(f.x)+f.width>depth.width||uint64_t(f.y)+f.height>depth.height||
+    if(!Readable(motion,MTLPixelFormatRG16Float)||(depth.usage&MTLTextureUsageShaderRead)==0||
+       uint64_t(f.x)+f.width>depth.width||uint64_t(f.y)+f.height>depth.height||
        uint64_t(f.x)+f.width>motion.width||uint64_t(f.y)+f.height>motion.height||p->value==UINT64_MAX)return false;
     uint64_t value=++p->value;
     id<MTLCommandBuffer> cb=[p->queue commandBuffer];cb.label=@"Selaco frame interpolation";
