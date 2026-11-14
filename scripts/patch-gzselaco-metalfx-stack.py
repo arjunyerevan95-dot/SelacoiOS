@@ -32,3 +32,6 @@ print('Experimental MetalFX stack materialized; no full-coverage/device claim')
 
 for name in ['framegen_admission_contract_test.py','framegen_route_contract_test.py','metalfx_device_scope_test.py']:
  subprocess.run([sys.executable,str(repo/'tests'/name),str(root)],check=True)
+
+subprocess.run([sys.executable,str(repo/'scripts/patch-gzselaco-framegen-compare.py'),str(root)],check=True)
+subprocess.run([sys.executable,str(repo/'tests/framegen_compare_contract_test.py'),str(root)],check=True)

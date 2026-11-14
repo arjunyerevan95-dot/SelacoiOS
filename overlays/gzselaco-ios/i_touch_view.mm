@@ -2,6 +2,7 @@
 #import <CoreMotion/CoreMotion.h>
 #import <QuartzCore/QuartzCore.h>
 #include "i_touch_input.h"
+#include "i_framegen_compare.h"
 #include "i_touch_math.h"
 #include "i_touch_policy.h"
 #include "i_touch_actions.h"
@@ -18,7 +19,7 @@ static NSMutableDictionary* defaults(){NSMutableArray*b=[NSMutableArray new];for
  @"radial":[@[@"weapons",@"map",@"codex",@"melee",@"gadget",@"crouch",@"more",@"settings"] mutableCopy],@"more":[@[@"objectives",@"meds",@"ability",@"switch_gadget",@"ability_previous",@"ability_next",@"light",@"native_wheel"] mutableCopy]} mutableCopy];}
 @interface SelacoTouchView:UIView {
  __weak UIViewController *_owner;CMMotionManager *_motion;CADisplayLink *_link;
- NSMutableDictionary *_settings,*_snapshot,*_touches;NSMutableArray *_layout;UIView *_panel,*_editorBar;UIButton *_editButton;UILabel *_editLabel;UISlider *_editSize;
+ NSMutableDictionary *_settings,*_snapshot,*_touches;NSMutableArray *_layout;UIView *_panel,*_editorBar;UIButton *_editButton,*_fgButton;UILabel *_fpsLabel;double _fpsClock;uint64_t _fpsRendered,_fpsEncoded;UILabel *_editLabel;UISlider *_editSize;
  UITouch *_moveTouch;CGPoint _origin,_stick,_wheelCenter;bool _menu,_suspended,_editing,_editMenu,_held[512];int _selected,_radial,_sector;
  SelacoIOS::AltLatch _alt;SelacoIOS::LookDoubleTap _lookTap;double _last,_biasX,_biasY,_calUntil,_sumX,_sumY;int _samples;UIInterfaceOrientation _orientation;
 }
@@ -58,9 +59,22 @@ static NSMutableDictionary* defaults(){NSMutableArray*b=[NSMutableArray new];for
  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(suspend:) name:UIApplicationWillResignActiveNotification object:nil];[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(resume:) name:UIApplicationDidBecomeActiveNotification object:nil];
  UILongPressGestureRecognizer*recovery=[[UILongPressGestureRecognizer alloc]initWithTarget:self action:@selector(recover:)];recovery.numberOfTouchesRequired=3;recovery.minimumPressDuration=1;[self addGestureRecognizer:recovery];
  _editButton=[UIButton buttonWithType:UIButtonTypeSystem];[_editButton setTitle:@"Edit controls" forState:UIControlStateNormal];_editButton.backgroundColor=[UIColor colorWithWhite:.05 alpha:.8];_editButton.layer.cornerRadius=8;_editButton.accessibilityIdentifier=@"selaco.editControls";[_editButton addTarget:self action:@selector(beginDirectEdit) forControlEvents:UIControlEventTouchUpInside];[self addSubview:_editButton];
+ _fgButton=[UIButton buttonWithType:UIButtonTypeSystem];_fgButton.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];_fgButton.backgroundColor=[UIColor colorWithWhite:.05 alpha:.8];_fgButton.layer.cornerRadius=8;_fgButton.accessibilityIdentifier=@"selaco.framegenToggle";[_fgButton addTarget:self action:@selector(toggleFramegen) forControlEvents:UIControlEventTouchUpInside];[self addSubview:_fgButton];
+ _fpsLabel=[UILabel new];_fpsLabel.font=[UIFont monospacedDigitSystemFontOfSize:11 weight:UIFontWeightMedium];_fpsLabel.textColor=UIColor.whiteColor;_fpsLabel.backgroundColor=[UIColor colorWithWhite:0 alpha:.65];_fpsLabel.numberOfLines=3;_fpsLabel.userInteractionEnabled=NO;_fpsLabel.text=@"Render: measuring\nFG encoded: measuring\nDisplay FPS: unmeasured";[self addSubview:_fpsLabel];
+ [self updateFramegenTitle];
+
  }return self;}
 // Always discoverable, independent of saved visibility/layout or the radial menu.
-- (void)layoutSubviews{[super layoutSubviews];CGRect a=[self area];_editButton.frame=CGRectMake(a.origin.x+8,a.origin.y+6,116,44);_editorBar.frame=CGRectMake(a.origin.x+8,CGRectGetMaxY(a)-108,fmin(360,a.size.width-16),100);}
+- (void)layoutSubviews{[super layoutSubviews];CGRect a=[self area];_editButton.frame=CGRectMake(a.origin.x+8,a.origin.y+6,116,44);_fgButton.frame=CGRectMake(a.origin.x+132,a.origin.y+6,108,44);_fpsLabel.frame=CGRectMake(a.origin.x+8,a.origin.y+54,225,48);_editorBar.frame=CGRectMake(a.origin.x+8,CGRectGetMaxY(a)-108,fmin(360,a.size.width-16),100);}
+- (void)updateFramegenTitle{const char* launch=std::getenv("SELACO_IOS_METALFX_FRAMEGEN");BOOL available=launch && !std::strcmp(launch,"1");_fgButton.enabled=available;[_fgButton setTitle:!available?@"FG test mode":SelacoCompare::Enabled()?@"FG request: ON":@"FG request: OFF" forState:UIControlStateNormal];_fgButton.accessibilityLabel=@"Toggle experimental frame generation";_fgButton.accessibilityHint=available?@"Compare in the same scene; encoded frames are not displayed FPS":@"Choose temporal plus framegen at launch to compare";}
+- (void)toggleFramegen{SelacoCompare::SetEnabled(!SelacoCompare::Enabled());_fpsClock=0;_fpsLabel.text=@"Render: measuring\nFG encoded: measuring\nDisplay FPS: unmeasured";[self updateFramegenTitle];}
+- (void)sampleFramegen:(double)now{
+ uint64_t r=SelacoCompare::rendered.load(std::memory_order_relaxed),e=SelacoCompare::encoded.load(std::memory_order_relaxed);
+ if(!_fpsClock){_fpsClock=now;_fpsRendered=r;_fpsEncoded=e;return;}
+ double dt=now-_fpsClock;if(dt<1)return;[self updateFramegenTitle];
+ _fpsLabel.text=[NSString stringWithFormat:@"Render: %.1f FPS\nFG encoded: %.1f/s (not displayed)\nDisplay FPS: unmeasured",double(r-_fpsRendered)/dt,double(e-_fpsEncoded)/dt];
+ _fpsClock=now;_fpsRendered=r;_fpsEncoded=e;
+}
 - (void)beginDirectEdit{if(!_snapshot)_snapshot=copySettings(_settings);[self reset];[_panel removeFromSuperview];_panel=nil;_editMenu=_menu;_layout=_settings[_editMenu?@"menuLayout":@"layout"];[self showDirectEditor];}
 - (void)showDirectEditor{[self reset];_editing=true;_editButton.hidden=YES;[_editorBar removeFromSuperview];_editorBar=[UIView new];_editorBar.backgroundColor=[UIColor colorWithWhite:.03 alpha:.95];_editorBar.layer.cornerRadius=10;[self addSubview:_editorBar];
  _editLabel=[[UILabel alloc]initWithFrame:CGRectMake(8,0,344,24)];_editLabel.font=[UIFont systemFontOfSize:12];_editLabel.textColor=UIColor.whiteColor;[_editorBar addSubview:_editLabel];
@@ -80,11 +94,11 @@ static NSMutableDictionary* defaults(){NSMutableArray*b=[NSMutableArray new];for
 - (void)reset{[_touches removeAllObjects];_moveTouch=nil;_radial=0;_sector=-1;_alt.reset();_lookTap.reset();std::fill(std::begin(_held),std::end(_held),false);SelacoTouchReset();[self setNeedsDisplay];}
 - (void)syncKeys{bool wanted[512]{};if(_alt.latched)wanted[0x101]=true;for(id k in _touches){NSDictionary*d=_touches[k];if(![d[@"hold"] boolValue])continue;auto*a=SelacoIOS::FindTouchAction([d[@"action"] UTF8String]);if(a&&a->scanCode>=0&&a->scanCode<512)wanted[a->scanCode]=true;}for(int k=0;k<512;k++)if(wanted[k]!=_held[k]){SelacoTouchKey(k,wanted[k]);_held[k]=wanted[k];}}
 - (void)suspend:(NSNotification*)n{(void)n;_suspended=true;[self reset];[_motion stopDeviceMotionUpdates];}
-- (void)resume:(NSNotification*)n{(void)n;_suspended=false;_last=0;[self reset];}
+- (void)resume:(NSNotification*)n{(void)n;_suspended=false;_last=0;_fpsClock=0;[self reset];}
 - (void)recover:(UILongPressGestureRecognizer*)g{if(g.state==UIGestureRecognizerStateBegan)[self settings];}
 - (void)tick:(CADisplayLink*)link{(void)link;bool menu=SelacoTouchMenu();UIInterfaceOrientation o=self.window.windowScene.interfaceOrientation;
  if(menu!=_menu||o!=_orientation){[self reset];_menu=menu;_orientation=o;_last=0;_biasX=_biasY=0;}
- double now=CACurrentMediaTime(),dt=_last?fmin(.05,now-_last):0;_last=now;
+ double now=CACurrentMediaTime();[self sampleFramegen:now];double dt=_last?fmin(.05,now-_last):0;_last=now;
  BOOL active=!_menu&&!_suspended&&!_editing&&!_panel&&!_radial&&[_settings[@"gyro"] boolValue];if(active&&_motion.deviceMotionAvailable&&!_motion.deviceMotionActive)[_motion startDeviceMotionUpdates];if(!active&&_motion.deviceMotionActive)[_motion stopDeviceMotionUpdates];
  CMDeviceMotion*m=_motion.deviceMotion;if(active&&m&&fabs(NSProcessInfo.processInfo.systemUptime-m.timestamp)<.15){auto a=SelacoIOS::GyroAxes(m.rotationRate.x,m.rotationRate.y,o==UIInterfaceOrientationLandscapeRight,[_settings[@"gyroInvertX"] boolValue],[_settings[@"gyroInvertY"] boolValue]);
   if(_calUntil>now){_sumX+=a.x;_sumY+=a.y;_samples++;}else{if(_calUntil){if(_samples){_biasX=_sumX/_samples;_biasY=_sumY/_samples;}_calUntil=0;}double ads=(_alt.latched||_held[0x101])?[self n:@"adsGain" fallback:1 low:.1 high:3]:1;SelacoTouchLook((a.x-_biasX)*dt*60*[self n:@"gyroGain" fallback:3 low:.1 high:20]*ads,(a.y-_biasY)*dt*60*[self n:@"gyroY" fallback:3 low:.1 high:20]*ads);}}

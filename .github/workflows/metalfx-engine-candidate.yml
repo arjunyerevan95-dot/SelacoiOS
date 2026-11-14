@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Build33: shared-event nullable affiliation and bounded export evidence.
+# Build34: in-game framegen comparison toggle and truthful renderer/encoded counters.
 
 on:
   workflow_dispatch:
@@ -39,6 +39,8 @@ jobs:
 
       - name: Validate build inputs
         run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread tests/framegen_compare_test.cpp -o /tmp/selaco-compare
+          /tmp/selaco-compare
           python3 tests/framegen_composition_contract_test.py
           c++ -std=c++17 -Wall -Wextra -Werror tests/temporal_present_pacer_test.cpp -o /tmp/selaco-pacer
           /tmp/selaco-pacer
@@ -77,7 +79,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(33)"
+            echo "bundle_version=0.9.7(34)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=30_to_60_admission_editor_and_runtime_receipts"
             echo "job_id_available_after_run=true"
