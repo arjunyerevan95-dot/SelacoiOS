@@ -14,6 +14,14 @@
 #if !__has_feature(objc_arc)
 #error MetalFX backend requires ARC
 #endif
+// One receipt per failure site, renderer-thread only. Keep device logs private.
+extern "C" void SelacoIOSReportLicensedAssetProbe(const char*, const char*);
+static void MetalFXReceipt(unsigned site,const char* reason) {
+    static uint64_t reported=0;
+    if(site>=64 || (reported&(uint64_t(1)<<site)))return;
+    reported|=uint64_t(1)<<site;
+    SelacoIOSReportLicensedAssetProbe("metalfx_backend",reason);
+}
 // Vulkan owns final output/presentation. This separate queue never owns a drawable.
 struct IOSMetalFXBackend {
     VulkanDevice* vk=nullptr;
@@ -53,15 +61,15 @@ static bool Readable(id<MTLTexture> texture,MTLPixelFormat format) {
 }
 static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool interpolation=false){
     if(!d->Instance->EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)||
-       !d->EnabledFeatures.TimelineSemaphore.timelineSemaphore)return nullptr;
+       !d->EnabledFeatures.TimelineSemaphore.timelineSemaphore){MetalFXReceipt(0,"prerequisite metal_objects or timeline feature absent");return nullptr;}
     auto p=std::make_unique<IOSMetalFXBackend>();p->vk=d;
-    if(!Timeline(d,&p->ready)||!Timeline(d,&p->done))return nullptr;
+    if(!Timeline(d,&p->ready)||!Timeline(d,&p->done)){MetalFXReceipt(1,"timeline semaphore allocation failed");return nullptr;}
     IOSMetalFXInteropConfig c{};c.device=d->device;c.vulkanQueue=d->GraphicsQueue;
     c.exportMetalObjects=(PFN_vkExportMetalObjectsEXT)vkGetInstanceProcAddr(d->Instance->Instance,"vkExportMetalObjectsEXT");
     c.sceneReady=p->ready;c.metalDone=p->done;c.metalObjectsEnabled=true;c.timelineSemaphoreEnabled=true;
     c.deviceExportDeclaredAtInstanceCreate=true;c.queueExportDeclaredAtInstanceCreate=true;c.semaphoreExportsDeclaredAtCreate=true;
     c.sceneReadyType=c.metalDoneType=VK_SEMAPHORE_TYPE_TIMELINE;
-    if(IOSMetalFXInteropCreate(c,&p->interop)!=IOSMetalFXInteropStatus::Ready)return nullptr;
+    if(IOSMetalFXInteropCreate(c,&p->interop)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(2,"Metal object/event export failed");return nullptr;}
     id<MTLDevice> device=IOSMetalFXInteropDevice(p->interop);p->queue=[device newCommandQueue];
     p->queue.label=@"Selaco MetalFX interop";
     IOSMetalFXConfig cfg{};cfg.inputWidth=f.width;cfg.inputHeight=f.height;
@@ -72,7 +80,7 @@ static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool i
     cfg.externalInterpolationHistory=interpolation;cfg.reactiveMask=!interpolation;
     cfg.interpolationColorFormat=cfg.uiFormat=MTLPixelFormatRGBA16Float;
     p->interpolation=interpolation;
-    if(IOSMetalFXCreate(device,cfg,&p->bridge)!=IOSMetalFXStatus::Ready)return nullptr;
+    if(IOSMetalFXCreate(device,cfg,&p->bridge)!=IOSMetalFXStatus::Ready){MetalFXReceipt(3,"MetalFX scaler/interpolator creation failed");return nullptr;}
     auto u=IOSMetalFXGetUsage(p->bridge);
     p->color=Texture(device,f.width,f.height,cfg.colorFormat,u.color);
     p->depth=Texture(device,f.width,f.height,cfg.depthFormat,u.depth|u.interpolationDepth);
@@ -105,9 +113,9 @@ static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool i
     if(interpolation && lib) {
         p->influence=[device newComputePipelineStateWithFunction:[lib newFunctionWithName:@"influence"] error:&error];
         p->influenceUI=Texture(device,f.outputWidth,f.outputHeight,MTLPixelFormatRGBA16Float,u.interpolationUI);
-        if(!p->influence||!p->influenceUI)return nullptr;
+        if(!p->influence||!p->influenceUI){MetalFXReceipt(4,"influence pipeline allocation failed");return nullptr;}
     }
-    if(!p->queue||!p->crop||!p->color||!p->depth||!p->motion||!p->reactive)return nullptr;
+    if(!p->queue||!p->crop||!p->color||!p->depth||!p->motion||!p->reactive){MetalFXReceipt(5,"Metal queue/crop/texture allocation failed");return nullptr;}
     p->width=f.width;p->height=f.height;p->outWidth=f.outputWidth;p->outHeight=f.outputHeight;
     return p.release();
 }
@@ -122,34 +130,34 @@ static bool Submit(VulkanDevice*d,VkSemaphore semaphore,uint64_t value,bool sign
 bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetalFXVkFrame&f){
     const char* opt=std::getenv("SELACO_IOS_METALFX");
     if(!opt||std::strcmp(opt,"1")||!f.completeMotion||!d||!f.flushProducer||!f.width||!f.height||
-       !f.outputWidth||!f.outputHeight||!f.color||!f.depth||!f.motion||!f.output||!f.reactive)return false;
+       !f.outputWidth||!f.outputHeight||!f.color||!f.depth||!f.motion||!f.output||!f.reactive){MetalFXReceipt(8,"temporal inputs invalid");return false;}
     if(!p)p=Create(d,f);
-    if(!p||p->vk!=d||p->interpolation||p->failed->load())return false;
-    if(p->width!=f.width||p->height!=f.height||p->outWidth!=f.outputWidth||p->outHeight!=f.outputHeight){p->recreate=true;return false;}
+    if(!p||p->vk!=d||p->interpolation||p->failed->load()){MetalFXReceipt(9,"temporal backend unavailable");return false;}
+    if(p->width!=f.width||p->height!=f.height||p->outWidth!=f.outputWidth||p->outHeight!=f.outputHeight){p->recreate=true;{MetalFXReceipt(10,"temporal dimensions changed");return false;}}
     id<MTLTexture> color=nil,depth=nil,motion=nil,output=nil,reactive=nil;
     IOSMetalFXExportImage e{};e.textureExportDeclaredAtCreate=true;e.image=f.color;
-    if(IOSMetalFXInteropTexture(p->interop,e,&color)!=IOSMetalFXInteropStatus::Ready)return false;
+    if(IOSMetalFXInteropTexture(p->interop,e,&color)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(11,"color export failed");return false;}
     e.image=VK_NULL_HANDLE;e.imageView=f.depth;e.plane=VK_IMAGE_ASPECT_DEPTH_BIT;
-    if(IOSMetalFXInteropTexture(p->interop,e,&depth)!=IOSMetalFXInteropStatus::Ready)return false;
+    if(IOSMetalFXInteropTexture(p->interop,e,&depth)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(12,"depth view export failed");return false;}
     e.imageView=VK_NULL_HANDLE;e.image=f.motion;e.plane=VK_IMAGE_ASPECT_COLOR_BIT;
-    if(IOSMetalFXInteropTexture(p->interop,e,&motion)!=IOSMetalFXInteropStatus::Ready)return false;
-    e.image=f.output;if(IOSMetalFXInteropTexture(p->interop,e,&output)!=IOSMetalFXInteropStatus::Ready)return false;
-    e.image=f.reactive;if(IOSMetalFXInteropTexture(p->interop,e,&reactive)!=IOSMetalFXInteropStatus::Ready)return false;
+    if(IOSMetalFXInteropTexture(p->interop,e,&motion)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(13,"motion export failed");return false;}
+    e.image=f.output;if(IOSMetalFXInteropTexture(p->interop,e,&output)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(14,"output export failed");return false;}
+    e.image=f.reactive;if(IOSMetalFXInteropTexture(p->interop,e,&reactive)!=IOSMetalFXInteropStatus::Ready){MetalFXReceipt(15,"reactive export failed");return false;}
     if(!Readable(reactive,MTLPixelFormatR8Unorm)||!Readable(motion,MTLPixelFormatRG16Float)||
        !Readable(color,MTLPixelFormatRGBA16Float)||(depth.usage&MTLTextureUsageShaderRead)==0||
-       uint64_t(f.x)+f.width>reactive.width||uint64_t(f.y)+f.height>reactive.height)return false;
+       uint64_t(f.x)+f.width>reactive.width||uint64_t(f.y)+f.height>reactive.height){MetalFXReceipt(16,"input format/usage invalid");return false;}
     if(uint64_t(f.x)+f.width>color.width||uint64_t(f.y)+f.height>color.height||
        uint64_t(f.x)+f.width>depth.width||uint64_t(f.y)+f.height>depth.height||
-       uint64_t(f.x)+f.width>motion.width||uint64_t(f.y)+f.height>motion.height)return false;
+       uint64_t(f.x)+f.width>motion.width||uint64_t(f.y)+f.height>motion.height){MetalFXReceipt(17,"input crop bounds invalid");return false;}
     auto usage=IOSMetalFXGetUsage(p->bridge);
     if(output.width!=f.outputWidth||output.height!=f.outputHeight||output.pixelFormat!=MTLPixelFormatRGBA16Float||
-       (output.usage&usage.output)!=usage.output)return false;
-    if(p->value==UINT64_MAX)return false;
+       (output.usage&usage.output)!=usage.output){MetalFXReceipt(18,"output format/usage invalid");return false;}
+    if(p->value==UINT64_MAX){MetalFXReceipt(19,"timeline exhausted");return false;}
     const uint64_t value=++p->value;
     id<MTLCommandBuffer> cb=[p->queue commandBuffer];cb.label=@"Selaco temporal upscale";
-    if(IOSMetalFXInteropBegin(p->interop,cb,value)!=IOSMetalFXInteropStatus::Encoded)return false;
+    if(IOSMetalFXInteropBegin(p->interop,cb,value)!=IOSMetalFXInteropStatus::Encoded){MetalFXReceipt(20,"temporal interop begin failed");return false;}
     auto enc=[cb computeCommandEncoder];
-    if(!enc){p->failed->store(true);return false;}
+    if(!enc){p->failed->store(true);{MetalFXReceipt(21,"temporal compute encoder failed");return false;}}
     [enc setComputePipelineState:p->crop];
     [enc setTexture:color atIndex:0];[enc setTexture:depth atIndex:1];[enc setTexture:motion atIndex:2];
     [enc setTexture:p->color atIndex:3];[enc setTexture:p->depth atIndex:4];[enc setTexture:p->motion atIndex:5];
@@ -159,7 +167,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     IOSMetalFXFrame temporal{};temporal.color=p->color;temporal.depth=p->depth;temporal.motion=p->motion;temporal.output=output;temporal.reactive=p->reactive;
     temporal.jitterX=f.jitterX;temporal.jitterY=f.jitterY;temporal.motionScaleX=float(f.width);temporal.motionScaleY=float(f.height);temporal.reset=f.reset;
     if(IOSMetalFXEncodeTemporal(p->bridge,cb,temporal)!=IOSMetalFXStatus::Encoded ||
-       IOSMetalFXInteropEnd(p->interop,cb,value)!=IOSMetalFXInteropStatus::Encoded){p->failed->store(true);return false;}
+       IOSMetalFXInteropEnd(p->interop,cb,value)!=IOSMetalFXInteropStatus::Encoded){p->failed->store(true);{MetalFXReceipt(22,"temporal encode/end failed");return false;}}
     // All failure-prone encoding/preflight happened before submitting the producer.
     f.flushProducer(f.user);
     if(!Submit(d,p->ready,value,true)){p->failed->store(true);I_FatalError("MetalFX producer timeline submit failed; unsafe to continue rendering");}
@@ -180,6 +188,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     [cb commit];
     // A failed Vulkan submit means device loss/error, not a valid fallback frame.
     if(!Submit(d,p->done,value,false)){p->failed->store(true);I_FatalError("MetalFX consumer timeline submit failed; unsafe to continue rendering");}
+    MetalFXReceipt(31,"temporal submitted; GPU completion and presentation are separate");
     return true;
 }
 void IOSMetalFXBackendDestroy(IOSMetalFXBackend*p){delete p;}

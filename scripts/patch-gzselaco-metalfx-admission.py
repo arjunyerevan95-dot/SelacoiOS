@@ -37,11 +37,11 @@ bool VkPostprocess::AdmitFramegenCapture()
  auto manager=fb->GetFramebufferManager();
  const auto refresh=manager->SwapChain->TimedPresentRefreshNS();
  if(vk_hdr){++fgCounts.hdrBlocked;return false;}
- if(!manager->ReadyForPair() || refresh<4000000 || refresh>11111112){++fgCounts.timingBlocked;return false;}
+ if(!manager->ReadyForPair() || refresh<4000000 || refresh>16666668){++fgCounts.timingBlocked;return false;}
  if(framegenPacer.HasPending()){++fgCounts.pendingBlocked;return false;}
  // Measured on EVERY renderer Update, including frames with no capture. Recovery
  // cannot depend on doing the expensive work that admission is trying to avoid.
- if(fgCadenceGood<2 || fgRenderDelta<refresh*3/2 || fgRenderDelta>refresh*5/2){++fgCounts.cadenceBlocked;return false;}
+ if(fgCadenceGood<2 || !IOSTemporalPresentPacer::CadenceSupported(refresh,fgRenderDelta)){++fgCounts.cadenceBlocked;return false;}
  return true;
 #else
  return false;
@@ -55,7 +55,7 @@ void VkPostprocess::CountFramegenRender()
  fgRenderDelta=fgRenderClock && now>fgRenderClock ? now-fgRenderClock : 0;
  fgRenderClock=now;
  const auto refresh=fb->GetFramebufferManager()->SwapChain->TimedPresentRefreshNS();
- if(refresh>=4000000 && refresh<=11111112 && fgRenderDelta>=refresh*3/2 && fgRenderDelta<=refresh*5/2){if(fgCadenceGood<2)++fgCadenceGood;}
+ if(IOSTemporalPresentPacer::CadenceSupported(refresh,fgRenderDelta)){if(fgCadenceGood<2)++fgCadenceGood;}
  else fgCadenceGood=0;
  const char* option=std::getenv("SELACO_IOS_METALFX_FRAMEGEN");
  if(!option || std::strcmp(option,"1")){fgCounts={};fgSummaryClock=now;return;}
@@ -65,8 +65,8 @@ void VkPostprocess::CountFramegenRender()
  if(now>fgSummaryClock && now-fgSummaryClock>=2000000000ULL){
   if(fgSummaries<20){
    ++fgSummaries;
-   Printf("Selaco MetalFX FG summary %u: renderer frames=%u cadence=%.1f/s (NOT displayed FPS); temporal=%u motion=%u projection=%u customScene=%u customScreen=%u captures=%u encoded=%u queuedPairs=%u realPairFeedback=%u blockedHDR=%u blockedTiming=%u blockedPending=%u blockedCadence=%u\n",
-    fgSummaries,fgCounts.rendered,double(fgCounts.rendered)*1e9/double(now-fgSummaryClock),
+   Printf("Selaco MetalFX FG summary %u: renderer frames=%u cadence=%.1f/s (NOT displayed FPS) refreshNS=%llu; temporal=%u motion=%u projection=%u customScene=%u customScreen=%u captures=%u encoded=%u queuedPairs=%u realPairFeedback=%u blockedHDR=%u blockedTiming=%u blockedPending=%u blockedCadence=%u\n",
+    fgSummaries,fgCounts.rendered,double(fgCounts.rendered)*1e9/double(now-fgSummaryClock),static_cast<unsigned long long>(refresh),
     fgCounts.temporal,fgCounts.motion,fgCounts.projection,fgCounts.customScene,fgCounts.customScreen,
     fgCounts.captures,fgCounts.encoded,fgCounts.queued,fgCounts.feedback,
     fgCounts.hdrBlocked,fgCounts.timingBlocked,fgCounts.pendingBlocked,fgCounts.cadenceBlocked);

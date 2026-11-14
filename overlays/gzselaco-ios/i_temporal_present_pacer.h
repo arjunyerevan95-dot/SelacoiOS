@@ -8,21 +8,24 @@ class IOSTemporalPresentPacer
 {
 public:
     struct Pair { uint64_t generatedNS=0, realNS=0; uint32_t generatedID=0, realID=0; };
+    static bool CadenceSupported(uint64_t refresh,uint64_t delta) {
+        return refresh>=4000000 && refresh<=16666668 && delta>=refresh*3/2 && delta<=40000000;
+    }
     bool Reserve(uint64_t now, uint64_t refresh, uint64_t realDelta,
                  bool completeHistory, bool fifoTimingSupported, Pair &out)
     {
         out={};
-        // One outstanding pair, 90+ Hz display and 45+ real FPS only. A 30 FPS
-        // producer is not promoted to a low-latency 60 FPS claim.
-        if (pending.realID || !completeHistory || !fifoTimingSupported || refresh<4000000 ||
-            refresh>11111112 || realDelta<refresh*3/2 || realDelta>refresh*5/2 ||
-            nextID>std::numeric_limits<uint32_t>::max()-2 ||
-            now>std::numeric_limits<uint64_t>::max()-refresh*3) return false;
-        // Never queue a stale generated frame or more than two ticks ahead.
-        uint64_t generated=now+refresh;
-        if (lastReal>now && lastReal<generated) generated=lastReal+refresh;
-        if (generated>now+refresh*2) return false;
-        out={generated,generated+refresh,nextID,nextID+1};
+        // 30->60 permitted; this does not increase input/simulation cadence.
+        if (pending.realID || !completeHistory || !fifoTimingSupported ||
+            !CadenceSupported(refresh,realDelta) ||
+            nextID>std::numeric_limits<uint32_t>::max()-2) return false;
+        const uint64_t ticks=(realDelta+refresh)/(2*refresh);
+        const uint64_t step=(ticks?ticks:1)*refresh;
+        if(now>std::numeric_limits<uint64_t>::max()-step*3)return false;
+        uint64_t generated=now+step;
+        if (lastReal>now && lastReal<generated) generated=lastReal+step;
+        if (generated>now+step*2) return false;
+        out={generated,generated+step,nextID,nextID+1};
         nextID+=2; pending=out; submitted=false; return true;
     }
     bool MarkSubmitted(const Pair& pair) {

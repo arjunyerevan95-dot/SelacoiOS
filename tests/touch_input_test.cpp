@@ -12,6 +12,11 @@ static bool menu=false;static bool capture(){return menu;}Callbacks sysCallbacks
 std::vector<event_t> events;int mx=0,my=0;
 void D_PostEvent(event_t*e){events.push_back(*e);}void PostMouseMove(int x,int y){mx+=x;my+=y;}
 int main(){Bindings.values={{0x1bf,"+attack"},{0x1c0,"+jump"}};SelacoTouchDrain();assert(!SelacoTouchMenu());
+ // Combined native action is held/released independently of aim and fire.
+ Bindings.values[0x1c2]="+usereload";
+ SelacoTouchKey(0x1c2,true);SelacoTouchDrain();assert(events.back().data1==0x1c2&&events.back().type==EV_KeyDown);
+ SelacoTouchLook(3,4);SelacoTouchDrain();assert(mx==3&&my==4);
+ SelacoTouchKey(0x1c2,false);SelacoTouchDrain();assert(events.back().data1==0x1c2&&events.back().type==EV_KeyUp);mx=my=0;
  SelacoTouchMove(5,-5);float axes[5]{};SelacoTouchAxes(axes);assert(axes[2]==1&&axes[3]==-1);
  SelacoTouchKey(0x100,true);SelacoTouchDrain();assert(events.back().type==EV_KeyDown&&events.back().data1==0x1bf);Bindings.values[0x1bf]="+use";SelacoTouchKey(0x100,false);SelacoTouchDrain();assert(events.back().type==EV_KeyUp&&events.back().data1==0x1bf);Bindings.values[0x1bf]="+attack";
  SelacoTouchKey(0x39,true);SelacoTouchKey(0x39,false);auto count=events.size();SelacoTouchDrain();assert(events.size()==count+1&&events.back().type==EV_KeyDown);SelacoTouchDrain();assert(events.size()==count+2&&events.back().type==EV_KeyUp);

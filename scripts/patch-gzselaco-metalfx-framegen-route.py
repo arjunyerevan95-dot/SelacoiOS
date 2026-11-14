@@ -56,8 +56,8 @@ void VkPostprocess::ProcessFramegen()
   FramegenDiagnostic(2,"waiting for consecutive stable clean/projection history");return;
  }
  const uint64_t refresh=manager->SwapChain->TimedPresentRefreshNS();
- if(!manager->ReadyForPair() || !refresh || refresh>11111112){
-  FramegenDiagnostic(4,"not generating: FIFO display timing with 90+ Hz refresh is required");return;
+ if(!manager->ReadyForPair() || !refresh || refresh>16666668){
+  FramegenDiagnostic(4,"not generating: FIFO display timing with 60+ Hz refresh is required");return;
  }
  IOSTemporalPresentPacer::Pair pair;
  if(!framegenPacer.Reserve(now,refresh,delta,true,true,pair)){

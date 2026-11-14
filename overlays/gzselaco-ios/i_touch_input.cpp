@@ -6,6 +6,9 @@
 #include "c_bind.h"
 #include "i_touch_binding.h"
 #include <cstdio>
+#if defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__)
+extern "C" void SelacoIOSReportLicensedAssetProbe(const char*,const char*);
+#endif
 SelacoTouchState selacoTouch;
 void SelacoTouchKey(int k,bool down){if(k<0||k>=512)return;std::lock_guard<std::mutex> l(selacoTouch.mutex);if(down&&!selacoTouch.keys[k])selacoTouch.pressed[k]=true;selacoTouch.keys[k]=down;}
 void SelacoTouchPulse(int k){if(k<0||k>=512)return;std::lock_guard<std::mutex> l(selacoTouch.mutex);if(selacoTouch.pulses.size()<24)selacoTouch.pulses.push_back(k);}
@@ -22,7 +25,11 @@ static void post(int k,bool down,bool menu){
    std::size_t n=0;const auto *catalog=SelacoIOS::TouchActionCatalog(n);
    for(std::size_t i=0;i<n;++i)if(catalog[i].scanCode==requested&&catalog[i].context==SelacoIOS::TouchActionContext::Gameplay){
     k=SelacoIOS::ResolveTouchBinding(catalog[i],[](int key){return Bindings.GetBind(key);});
-    if(!logged[requested]){std::fprintf(stderr,"SELACO_TOUCH_BIND action=%s requested=%d resolved=%d native_pad=%d\n",catalog[i].id,requested,k,k>=0x1b4&&k<=0x1c3);logged[requested]=true;}
+    if(!logged[requested]){std::fprintf(stderr,"SELACO_TOUCH_BIND action=%s requested=%d resolved=%d native_pad=%d\n",catalog[i].id,requested,k,k>=0x1b4&&k<=0x1c3);logged[requested]=true;
+#if defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__)
+     static unsigned receipts=0;if(receipts++<16){char detail[320];std::snprintf(detail,sizeof(detail),"action=%s requested=%d resolved=%d native_pad=%d expected=%.64s effective=%.96s",catalog[i].id,requested,k,k>=0x1b4&&k<=0x1c3,catalog[i].defaultCommand,k>0?Bindings.GetBind(k):"UNBOUND");SelacoIOSReportLicensedAssetProbe("touch_binding",detail);}
+#endif
+    }
     break;
    }
    heldRoute[requested]=k;

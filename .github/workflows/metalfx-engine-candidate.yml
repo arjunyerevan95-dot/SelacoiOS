@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Early admission avoids rejected-frame GPU copies; bounded runtime gate/presentation counters.
+# Build30: 30-to-60 admission, direct editor, bounded native binding and temporal diagnostics.
 
 on:
   workflow_dispatch:
@@ -40,6 +40,8 @@ jobs:
       - name: Validate build inputs
         run: |
           python3 tests/framegen_composition_contract_test.py
+          c++ -std=c++17 -Wall -Wextra -Werror tests/temporal_present_pacer_test.cpp -o /tmp/selaco-pacer
+          /tmp/selaco-pacer
           bash -n scripts/m4-title-menu-compile-probe.sh
           bash -n scripts/m4-title-menu-app-artifact-probe.sh
           python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
@@ -73,9 +75,9 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(29)"
+            echo "bundle_version=0.9.7(30)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
-            echo "diagnostic_scope=early_framegen_admission_and_bounded_runtime_receipts"
+            echo "diagnostic_scope=30_to_60_admission_editor_and_runtime_receipts"
             echo "job_id_available_after_run=true"
           } > build/evidence/m4-title-menu-app/workflow-identity.txt
 

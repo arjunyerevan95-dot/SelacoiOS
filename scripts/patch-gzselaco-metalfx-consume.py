@@ -71,6 +71,18 @@ edit(p,'\tmCurrentPipelineImage = 0;\n\n\tVkImageTransition()', '''\tmCurrentPip
     // Fullscreen-only first integration; camera targets/reduced screenblocks fall back.
     // CompleteMotion remains owned by the producer, never promoted here.
     const auto temporalMetadata = SelacoMotionMetadata();
+    if(IOSMetalFXRequested() && temporalMetadata.complete) {
+        static unsigned receipts=0,lastGate=~0u;
+        unsigned gate=(fb->iosSceneScaled?1u:0u) |
+            (buffers->GetSceneSamples()==VK_SAMPLE_COUNT_1_BIT?2u:0u) |
+            (buffers->SceneMotionDiagnostic.Image?4u:0u) | (buffers->SceneReactive.Image?8u:0u) |
+            (buffers->SceneDepthStencil.DepthOnlyView?16u:0u) |
+            (fb->iosNativeSceneRect.left==0 && fb->iosNativeSceneRect.top==0 &&
+             fb->iosNativeSceneRect.width==buffers->GetWidth() && fb->iosNativeSceneRect.height==buffers->GetHeight()?32u:0u);
+        if(gate!=lastGate && receipts<8){lastGate=gate;++receipts;
+            Printf("Selaco temporal preflight: mask=%u (63=ready) input=%dx%d output=%dx%d\\n",gate,
+              fb->mSceneViewport.width,fb->mSceneViewport.height,buffers->GetWidth(),buffers->GetHeight());}
+    }
     if (IOSMetalFXRequested() && temporalMetadata.complete && fb->iosSceneScaled &&
         buffers->GetSceneSamples() == VK_SAMPLE_COUNT_1_BIT &&
         buffers->SceneMotionDiagnostic.Image && buffers->SceneReactive.Image && buffers->SceneDepthStencil.DepthOnlyView &&

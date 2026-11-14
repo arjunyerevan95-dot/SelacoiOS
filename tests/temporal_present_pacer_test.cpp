@@ -2,10 +2,13 @@
 #include <cassert>
 int main() {
     IOSTemporalPresentPacer p; IOSTemporalPresentPacer::Pair a,b;
-    assert(!p.Reserve(1000000000,16666667,33333334,true,true,a));
+    assert(p.Reserve(1000000000,16666667,33333334,true,true,a));
+    assert(a.realNS-a.generatedNS==16666667);assert(p.CancelUnsubmitted(a));
     assert(!p.Reserve(1000000000,8333333,16666666,false,true,a));
     assert(!p.Reserve(1000000000,8333333,16666666,true,false,a));
-    assert(!p.Reserve(1000000000,8333333,33333333,true,true,a));
+    assert(p.Reserve(1000000000,8333333,33333333,true,true,a));
+    assert(a.realNS-a.generatedNS==16666666);assert(p.CancelUnsubmitted(a));
+    assert(!p.Reserve(1000000000,8333333,70000000,true,true,a));
     assert(p.Reserve(1000000000,8333333,16666666,true,true,a));
     assert(a.generatedNS<a.realNS && a.generatedID<a.realID);
     assert(!p.Reserve(1000000001,8333333,16666666,true,true,b));

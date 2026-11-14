@@ -8,7 +8,7 @@ clean=s[s.index('bool VkPostprocess::CaptureFramegenClean'):s.index('void VkPost
 assert clean.index('AdmitFramegenCapture()')<clean.index('EnsureFramegenTexture(')<clean.index('hw_postprocess.Pass2(')
 assert 'framegenPreviousSerial=0;framegenSerial=0;fgLastTime=0;fgLastSerial=0;return false;' in clean
 admit=s[s.index('bool VkPostprocess::AdmitFramegenCapture'):s.index('void VkPostprocess::CountFramegenRender')]
-for guard in ['if(vk_hdr)','!manager->ReadyForPair()','refresh>11111112','framegenPacer.HasPending()','fgCadenceGood<2']:
+for guard in ['if(vk_hdr)','!manager->ReadyForPair()','refresh>16666668','framegenPacer.HasPending()','fgCadenceGood<2']:
  assert guard in admit,guard
 process=s[s.index('void VkPostprocess::ProcessFramegen()'):s.index('void VkPostprocess::BlitSceneToPostprocess()')]
 assert process.index('CountFramegenRender();')<process.index('const char* option=')<process.index('!temporalConsumed')
@@ -28,6 +28,6 @@ for serial,delta in enumerate([70000000,70000000,16666666,16666666,16666666,1666
   if previous and serial==previous+1:pairs.append(serial)
   previous=serial
  else:previous=0
- good=min(2,good+1) if refresh*3//2<=delta<=refresh*5//2 else 0
+ good=min(2,good+1) if refresh*3//2<=delta<=40000000 else 0
 assert captures==[5,6] and pairs==[6],(captures,pairs)
 print('PASS: cheap admission before GPU capture; independent cadence recovery; two-capture warmup; bounded truthful counters')
