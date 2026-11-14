@@ -1,4 +1,7 @@
 #include "i_metalfx_interop.h"
+#include "i_metalfx_event_validation.h"
+#include <cstdio>
+extern "C" void SelacoIOSReportLicensedAssetProbe(const char*,const char*);
 #if !__has_feature(objc_arc)
 #error i_metalfx_interop.mm requires ARC
 #endif
@@ -37,10 +40,20 @@ IOSMetalFXInteropStatus IOSMetalFXInteropCreate(const IOSMetalFXInteropConfig& c
     VkExportMetalObjectsInfoEXT exports{};
     exports.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT; exports.pNext = &dev;
     c.exportMetalObjects(c.device, &exports);
-    if (!dev.mtlDevice || !queue.mtlCommandQueue || queue.mtlCommandQueue.device != dev.mtlDevice ||
-        !ready.mtlSharedEvent || !done.mtlSharedEvent ||
-        ready.mtlSharedEvent == done.mtlSharedEvent ||
-        ready.mtlSharedEvent.device != dev.mtlDevice || done.mtlSharedEvent.device != dev.mtlDevice)
+    // One bounded receipt: flags only, no pointers or private device identifiers.
+    static bool exportReported=false;
+    if(!exportReported){
+        exportReported=true;char receipt[256];
+        std::snprintf(receipt,sizeof(receipt),"device=%d queue=%d queueMatches=%d ready=%d done=%d distinct=%d readyUnbound=%d doneUnbound=%d",
+            dev.mtlDevice!=nil,queue.mtlCommandQueue!=nil,queue.mtlCommandQueue.device==dev.mtlDevice,
+            ready.mtlSharedEvent!=nil,done.mtlSharedEvent!=nil,ready.mtlSharedEvent!=done.mtlSharedEvent,
+            ready.mtlSharedEvent.device==nil,done.mtlSharedEvent.device==nil);
+        SelacoIOSReportLicensedAssetProbe("metalfx_export_flags",receipt);
+    }
+    if (!IOSMetalFXExportObjectsValid((__bridge const void*)dev.mtlDevice,
+        (__bridge const void*)queue.mtlCommandQueue, (__bridge const void*)queue.mtlCommandQueue.device,
+        (__bridge const void*)ready.mtlSharedEvent, (__bridge const void*)done.mtlSharedEvent,
+        (__bridge const void*)ready.mtlSharedEvent.device, (__bridge const void*)done.mtlSharedEvent.device))
         return IOSMetalFXInteropStatus::ExportFailed;
     auto* p = new IOSMetalFXInterop{};
     p->config = c; p->device = dev.mtlDevice; p->vulkanQueue = queue.mtlCommandQueue;

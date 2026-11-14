@@ -15,7 +15,7 @@ assert s.count(old)==1, 'Expected iOS framework linker anchor'
 s=s.replace(old,'-framework CoreMotion -weak_framework MetalFX"')
 s+='\nset_source_files_properties(common/platform/ios/i_metalfx_bridge.mm common/platform/ios/i_metalfx_interop.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")\n'
 ios=root/'src/common/platform/ios';ios.mkdir(parents=True,exist_ok=True)
-for name in ['i_metalfx_bridge.h','i_metalfx_bridge.mm','i_metalfx_interop.h','i_metalfx_interop.mm',
+for name in ['i_metalfx_bridge.h','i_metalfx_bridge.mm','i_metalfx_interop.h','i_metalfx_event_validation.h','i_metalfx_interop.mm',
              'i_metalfx_retry.h','i_temporal_history.h','i_temporal_primitive_history.h','RTGL-MIT-LICENSE.txt']:
     shutil.copyfile(repo/'overlays/gzselaco-ios'/name,ios/name)
 cmake.write_text(s)

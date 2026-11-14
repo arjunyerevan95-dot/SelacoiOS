@@ -1,0 +1,5 @@
+# Build32 device result
+Read-only capture build32-review: actual installed version32. Current zscript diagnostics: temporal=0, captures=0, encoded=0, queuedPairs=0, realPairFeedback=0. Renderer~30/s initial,18.5-23.7/s gameplay. Not displayed FPS. Latest bootstrap export failed/temporal unavailable. No FG is running.
+Screenshot IMG_4661: two curved visor-like white outlines. Cannot be interpolation artifact as no interpolation occurred. Exact game asset identification pending.
+Local fix: permit nil affiliation for cross-device MTLSharedEvent, retaining queue/device/event validity checks; five portable validation cases pass. Add bounded export flag receipt. Nil affiliation is documented API behavior; old aggregate receipt does not independently prove which field failed on this device. No build dispatched. No performance success claim.
+Primary sources: https://developer.apple.com/documentation/metal/mtlsharedevent and https://developer.apple.com/documentation/metal/mtlevent/device and MoltenVK v1.4.1 MVKDevice::getMetalObjects.

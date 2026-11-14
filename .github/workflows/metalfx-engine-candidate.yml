@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Build32: backport borrowed Metal handle ARC ownership fix.
+# Build33: shared-event nullable affiliation and bounded export evidence.
 
 on:
   workflow_dispatch:
@@ -77,7 +77,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(32)"
+            echo "bundle_version=0.9.7(33)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=30_to_60_admission_editor_and_runtime_receipts"
             echo "job_id_available_after_run=true"
