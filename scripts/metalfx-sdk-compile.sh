@@ -17,6 +17,7 @@ flags=(-std=c++17 -target arm64-apple-ios16.0 -isysroot "$sdk" -c
   -I"$e/libraries/ZVulkan/include/zvulkan" -I"$e/libraries/ZVulkan/src"
   -I"$e/src/common/utility")
 failed=0
+xcrun --sdk iphoneos clang++ "${flags[@]}" -fobjc-arc tests/metalfx_arc_ownership_test.mm -o "$out/arc-ownership.o" || failed=1
 for name in i_metalfx_bridge i_metalfx_interop i_metalfx_backend; do
   xcrun --sdk iphoneos clang++ "${flags[@]}" -fobjc-arc "overlays/gzselaco-ios/$name.mm" -o "$out/$name.o" || failed=1
 done

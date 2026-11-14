@@ -9,6 +9,13 @@ root=Path(sys.argv[1])
 def edit(rel,old,new):
     p=root/rel;s=p.read_text();assert s.count(old)==1,(rel,old[:70]);p.write_text(s.replace(old,new))
 base='libraries/ZVulkan/'
+# Backport Vulkan-Headers metal_objects revision2 ARC ownership correction.
+# Export output pointers are BORROWED, written by non-ARC Vulkan code. Strong
+# typedefs cause scope teardown to release MoltenVK-owned Metal objects.
+for protocol in ['MTLDevice','MTLCommandQueue','MTLBuffer','MTLTexture','MTLSharedEvent']:
+    edit(base+'include/vulkan/vulkan_metal.h',
+         'typedef id<'+protocol+'> '+protocol+'_id;',
+         'typedef __unsafe_unretained id<'+protocol+'> '+protocol+'_id;')
 edit(base+'include/zvulkan/vulkaninstance.h',
      '\tVkPhysicalDeviceFeatures Features = {};',
      '\tVkPhysicalDeviceFeatures Features = {};\n\tVkPhysicalDeviceTimelineSemaphoreFeatures TimelineSemaphore = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES };')
