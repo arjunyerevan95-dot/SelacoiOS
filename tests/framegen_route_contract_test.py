@@ -6,7 +6,10 @@ r=Path(sys.argv[1]);s=(r/'src/common/rendering/vulkan/renderer/vk_postprocess.cp
 p=s.split('void VkPostprocess::ProcessFramegen()',1)[1].split('void VkPostprocess::BlitSceneToPostprocess()',1)[0]
 for gate in ['!meta.complete','!meta.projectionValid','!framegenPairReady','meta.reset','delta>100000000','if(vk_hdr)','!manager->ReadyForPair()']:
  assert gate in p,gate
-assert p.index('PollFramegenFeedback();')<p.index('std::getenv')
+# Disabled requests skip timing queries unless an already-submitted pair needs retirement.
+assert p.index('std::getenv') < p.index('PollFramegenFeedback();')
+assert 'if(framegenPacer.HasPending())PollFramegenFeedback();' in p
+assert p.index('PollFramegenFeedback();') < p.index('Reserve(')
 poll=s.split('void VkPostprocess::PollFramegenFeedback()',1)[1].split('bool VkPostprocess::AdmitFramegenCapture()',1)[0]
 assert 'PairDrainEpoch()' in poll and 'CollectPresentTimings()' in poll
 assert 'f.x=framegenInputRect.left' in p and 'f.width=framegenInputRect.width' in p

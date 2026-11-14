@@ -11,7 +11,7 @@ p='libraries/ZVulkan/src/vulkanbuilders.cpp'
 edit(p,'\tVkResult result = vmaCreateImage(device->allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr);','''#if defined(VK_USE_PLATFORM_METAL_EXT)
     VkExportMetalObjectCreateInfoEXT metalExport = { VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT };
     const void* savedNext = imageInfo.pNext;
-    if (device->Instance->EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)) {
+    if (device->SupportsExtension(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)) {
         metalExport.exportObjectType = VK_EXPORT_METAL_OBJECT_TYPE_METAL_TEXTURE_BIT_EXT;
         metalExport.pNext = savedNext; imageInfo.pNext = &metalExport;
     }
@@ -23,7 +23,7 @@ edit(p,'\tVkResult result = vmaCreateImage(device->allocator, &imageInfo, &alloc
 edit(p,'\tVkResult result = vkCreateImageView(device->device, &viewInfo, nullptr, &view);','''#if defined(VK_USE_PLATFORM_METAL_EXT)
     VkExportMetalObjectCreateInfoEXT metalExport = { VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT };
     const void* savedNext = viewInfo.pNext;
-    if (device->Instance->EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)) {
+    if (device->SupportsExtension(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)) {
         metalExport.exportObjectType = VK_EXPORT_METAL_OBJECT_TYPE_METAL_TEXTURE_BIT_EXT;
         metalExport.pNext = savedNext; viewInfo.pNext = &metalExport;
     }

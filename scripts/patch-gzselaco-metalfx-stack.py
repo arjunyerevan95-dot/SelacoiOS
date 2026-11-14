@@ -30,5 +30,5 @@ for name in patches:
  subprocess.run([sys.executable,str(repo/'scripts'/name),str(root)],check=True)
 print('Experimental MetalFX stack materialized; no full-coverage/device claim')
 
-for name in ['framegen_admission_contract_test.py','framegen_route_contract_test.py']:
+for name in ['framegen_admission_contract_test.py','framegen_route_contract_test.py','metalfx_device_scope_test.py']:
  subprocess.run([sys.executable,str(repo/'tests'/name),str(root)],check=True)

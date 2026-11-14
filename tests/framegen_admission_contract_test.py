@@ -11,7 +11,9 @@ admit=s[s.index('bool VkPostprocess::AdmitFramegenCapture'):s.index('void VkPost
 for guard in ['if(vk_hdr)','!manager->ReadyForPair()','refresh>16666668','framegenPacer.HasPending()','fgCadenceGood<2']:
  assert guard in admit,guard
 process=s[s.index('void VkPostprocess::ProcessFramegen()'):s.index('void VkPostprocess::BlitSceneToPostprocess()')]
-assert process.index('CountFramegenRender();')<process.index('const char* option=')<process.index('!temporalConsumed')
+assert process.index('const char* option=')<process.index('CountFramegenRender();')<process.index('!temporalConsumed')
+assert 'if(framegenPacer.HasPending())PollFramegenFeedback();' in process
+assert process.index('fgRenderClock=0;fgCadenceGood=0;return;') < process.index('CountFramegenRender();')
 assert '++fgCounts.encoded;' in process and '++fgCounts.queued;' in process
 count=s[s.index('void VkPostprocess::CountFramegenRender()'):s.index('void VkPostprocess::FramegenDiagnostic')]
 assert 'fgRenderClock=now' in count and 'fgSummaries<20' in count and '2000000000ULL' in count

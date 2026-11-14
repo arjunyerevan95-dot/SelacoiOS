@@ -1,6 +1,7 @@
 #include "i_metalfx_backend.h"
 #include "i_metalfx_bridge.h"
 #include "i_metalfx_interop.h"
+#include "i_metalfx_retry.h"
 #include <zvulkan/vulkandevice.h>
 #include <zvulkan/vulkanobjects.h>
 #include <atomic>
@@ -60,8 +61,8 @@ static bool Readable(id<MTLTexture> texture,MTLPixelFormat format) {
     return texture && texture.pixelFormat==format && (texture.usage&MTLTextureUsageShaderRead)!=0;
 }
 static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool interpolation=false){
-    if(!d->Instance->EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)||
-       !d->EnabledFeatures.TimelineSemaphore.timelineSemaphore){MetalFXReceipt(0,"prerequisite metal_objects or timeline feature absent");return nullptr;}
+    if(!d->SupportsExtension(VK_EXT_METAL_OBJECTS_EXTENSION_NAME)){MetalFXReceipt(0,"device metal_objects extension unavailable");return nullptr;}
+    if(!d->EnabledFeatures.TimelineSemaphore.timelineSemaphore){MetalFXReceipt(32,"timeline feature unavailable");return nullptr;}
     auto p=std::make_unique<IOSMetalFXBackend>();p->vk=d;
     if(!Timeline(d,&p->ready)||!Timeline(d,&p->done)){MetalFXReceipt(1,"timeline semaphore allocation failed");return nullptr;}
     IOSMetalFXInteropConfig c{};c.device=d->device;c.vulkanQueue=d->GraphicsQueue;
@@ -119,6 +120,19 @@ static IOSMetalFXBackend* Create(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool i
     p->width=f.width;p->height=f.height;p->outWidth=f.outputWidth;p->outHeight=f.outputHeight;
     return p.release();
 }
+// Failure may occur after scaler allocation or runtime Metal kernel compilation.
+// Keep the ordinary real-frame fallback cheap rather than retrying every frame.
+// Separate mode gates; owner/device/dimensions changes retry immediately.
+static IOSMetalFXBackend* CreateWithBackoff(VulkanDevice*d,const IOSMetalFXVkFrame&f,bool interpolation=false){
+    static IOSMetalFXCreateRetry temporalRetry, interpolationRetry;
+    auto& retry=interpolation?interpolationRetry:temporalRetry;
+    const IOSMetalFXCreateKey key{reinterpret_cast<std::uintptr_t>(d),
+        reinterpret_cast<std::uintptr_t>(d->device),f.width,f.height,f.outputWidth,f.outputHeight,interpolation};
+    if(!retry.Allow(key,IOSMetalFXPresentationTimeNS()))return nullptr;
+    auto* result=Create(d,f,interpolation);
+    if(result)retry.Succeeded();else retry.Failed(IOSMetalFXPresentationTimeNS());
+    return result;
+}
 static bool Submit(VulkanDevice*d,VkSemaphore semaphore,uint64_t value,bool signal){
     VkTimelineSemaphoreSubmitInfo t{};t.sType=VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
     VkSubmitInfo s{};s.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO;s.pNext=&t;
@@ -131,7 +145,7 @@ bool IOSMetalFXBackendConsume(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSMetal
     const char* opt=std::getenv("SELACO_IOS_METALFX");
     if(!opt||std::strcmp(opt,"1")||!f.completeMotion||!d||!f.flushProducer||!f.width||!f.height||
        !f.outputWidth||!f.outputHeight||!f.color||!f.depth||!f.motion||!f.output||!f.reactive){MetalFXReceipt(8,"temporal inputs invalid");return false;}
-    if(!p)p=Create(d,f);
+    if(!p)p=CreateWithBackoff(d,f);
     if(!p||p->vk!=d||p->interpolation||p->failed->load()){MetalFXReceipt(9,"temporal backend unavailable");return false;}
     if(p->width!=f.width||p->height!=f.height||p->outWidth!=f.outputWidth||p->outHeight!=f.outputHeight){p->recreate=true;{MetalFXReceipt(10,"temporal dimensions changed");return false;}}
     id<MTLTexture> color=nil,depth=nil,motion=nil,output=nil,reactive=nil;
@@ -207,7 +221,7 @@ bool IOSMetalFXBackendInterpolate(IOSMetalFXBackend*&p,VulkanDevice*d,const IOSM
        !d||!f.flushProducer||!f.width||!f.height||!f.outputWidth||!f.outputHeight||
        !f.color||!f.previousColor||(!f.ui && !f.compositedColor)||!f.depth||!f.motion||!f.output||
        (f.compositedColor && (!f.matchedComposition || f.ui)))return false;
-    if(!p)p=Create(d,f,true);
+    if(!p)p=CreateWithBackoff(d,f,true);
     if(!p||p->vk!=d||!p->interpolation||p->failed->load())return false;
     if(p->width!=f.width||p->height!=f.height||p->outWidth!=f.outputWidth||p->outHeight!=f.outputHeight){p->recreate=true;return false;}
     id<MTLTexture> color=nil,previous=nil,ui=nil,depth=nil,motion=nil,output=nil,composite=nil;

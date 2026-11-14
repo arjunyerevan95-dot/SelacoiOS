@@ -39,12 +39,6 @@ edit(base+'src/vulkandevice.cpp',
 \tEnabledFeatures.TimelineSemaphore.pNext = nullptr;''')
 
 edit(base+'src/vulkaninstance.cpp','#include <cstring>','#include <cstring>\n#include <cstdlib>')
-edit(base+'src/vulkaninstance.cpp', '\tAvailableExtensions = GetExtensions();', '''\tAvailableExtensions = GetExtensions();
-#if defined(VK_USE_PLATFORM_METAL_EXT)
-\tconst char *metalFX = std::getenv("SELACO_IOS_METALFX");
-\tif (metalFX && std::strcmp(metalFX, "1") == 0)
-\t\tOptionalExtensions.insert(VK_EXT_METAL_OBJECTS_EXTENSION_NAME);
-#endif''')
 edit(base+'src/vulkaninstance.cpp',
      '\t\tresult = vkCreateInstance(&createInfo, nullptr, &Instance);',
      '''#if defined(VK_USE_PLATFORM_METAL_EXT)
@@ -53,7 +47,7 @@ edit(base+'src/vulkaninstance.cpp',
 \t\tVkExportMetalObjectCreateInfoEXT exportDevice = { VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT };
 \t\tVkExportMetalObjectCreateInfoEXT exportQueue = { VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECT_CREATE_INFO_EXT };
 \t\tconst char *metalFX = std::getenv("SELACO_IOS_METALFX");
-\t\tif (metalFX && std::strcmp(metalFX, "1") == 0 && EnabledExtensions.count(VK_EXT_METAL_OBJECTS_EXTENSION_NAME))
+\t\tif (metalFX && std::strcmp(metalFX, "1") == 0)
 \t\t{
 \t\t\texportDevice.exportObjectType = VK_EXPORT_METAL_OBJECT_TYPE_METAL_DEVICE_BIT_EXT;
 \t\t\texportQueue.exportObjectType = VK_EXPORT_METAL_OBJECT_TYPE_METAL_COMMAND_QUEUE_BIT_EXT;
@@ -74,6 +68,7 @@ edit(p,'\tVulkanDeviceBuilder builder;', '''\tVulkanDeviceBuilder builder;
 \tif (metalFX && std::strcmp(metalFX, "1") == 0)
 \t{
 \t\tbuilder.OptionalExtension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
+\t\tbuilder.OptionalExtension(VK_EXT_METAL_OBJECTS_EXTENSION_NAME);
 \t}
 #endif''')
 print('MetalFX device prerequisites patched; temporal/framegen runtime remains separate')
