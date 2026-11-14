@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Build30: 30-to-60 admission, direct editor, bounded native binding and temporal diagnostics.
+# LF-safe build30 retry: 30-to-60 admission, direct editor, bounded native binding and temporal diagnostics.
 
 on:
   workflow_dispatch:
