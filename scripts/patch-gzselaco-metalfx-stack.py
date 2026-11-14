@@ -35,3 +35,6 @@ for name in ['framegen_admission_contract_test.py','framegen_route_contract_test
 
 subprocess.run([sys.executable,str(repo/'scripts/patch-gzselaco-framegen-compare.py'),str(root)],check=True)
 subprocess.run([sys.executable,str(repo/'tests/framegen_compare_contract_test.py'),str(root)],check=True)
+
+subprocess.run([sys.executable,str(repo/'scripts/patch-gzselaco-topsprite.py'),str(root)],check=True)
+subprocess.run([sys.executable,str(repo/'tests/topsprite_contract_test.py'),str(root)],check=True)

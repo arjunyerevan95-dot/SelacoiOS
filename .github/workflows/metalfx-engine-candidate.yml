@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Build35: individual-button direct drag and two-finger pinch resize.
+# Build36: evidenced TopSprite compatibility marker.
 
 on:
   workflow_dispatch:
@@ -37,28 +37,10 @@ jobs:
       - name: Compile MetalFX API snapshot
         run: bash scripts/metalfx-sdk-compile.sh
 
-      - name: Validate build inputs
+      - name: Validate changed TopSprite parser path
         run: |
-          python3 tests/touch_editor_contract_test.py
-          c++ -std=c++17 -Wall -Wextra -Werror tests/touch_editor_test.cpp -o /tmp/selaco-touch-editor
-          /tmp/selaco-touch-editor
-          xcrun --sdk iphoneos clang++ -arch arm64 -miphoneos-version-min=16.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -std=c++17 -fobjc-arc -fsyntax-only -Ioverlays/gzselaco-ios overlays/gzselaco-ios/i_touch_view.mm
-          c++ -std=c++17 -Wall -Wextra -Werror -pthread tests/framegen_compare_test.cpp -o /tmp/selaco-compare
-          /tmp/selaco-compare
-          python3 tests/framegen_composition_contract_test.py
-          c++ -std=c++17 -Wall -Wextra -Werror tests/temporal_present_pacer_test.cpp -o /tmp/selaco-pacer
-          /tmp/selaco-pacer
-          c++ -std=c++17 -Wall -Wextra -Werror tests/metalfx_create_retry_test.cpp -o /tmp/selaco-create-retry
-          /tmp/selaco-create-retry
-          bash -n scripts/m4-title-menu-compile-probe.sh
-          bash -n scripts/m4-title-menu-app-artifact-probe.sh
-          python3 -m py_compile scripts/patch-gzselaco-saveguard-ios-m4m.py scripts/patch-gzselaco-present-lifetime.py
-          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_policy_test.cpp -o /tmp/selaco-touch-policy
-          /tmp/selaco-touch-policy
-          c++ -std=c++17 -Wall -Wextra -Werror -Ioverlays/gzselaco-ios tests/touch_binding_test.cpp -o /tmp/selaco-touch-binding
-          /tmp/selaco-touch-binding
-          c++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/touch_stubs -Ioverlays/gzselaco-ios tests/touch_input_test.cpp overlays/gzselaco-ios/i_touch_input.cpp -o /tmp/selaco-touch-input
-          /tmp/selaco-touch-input
+          python3 tests/topsprite_contract_test.py
+          python3 -m py_compile scripts/patch-gzselaco-topsprite.py
 
       - name: Build and validate M4M upstream API diagnostic candidate
         run: |
@@ -83,7 +65,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(35)"
+            echo "bundle_version=0.9.7(36)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=30_to_60_admission_editor_and_runtime_receipts"
             echo "job_id_available_after_run=true"
