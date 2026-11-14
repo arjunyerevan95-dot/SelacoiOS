@@ -1,5 +1,5 @@
 name: Selaco experimental framegen and output transition candidate
-# Build34: in-game framegen comparison toggle and truthful renderer/encoded counters.
+# Build35: individual-button direct drag and two-finger pinch resize.
 
 on:
   workflow_dispatch:
@@ -39,6 +39,10 @@ jobs:
 
       - name: Validate build inputs
         run: |
+          python3 tests/touch_editor_contract_test.py
+          c++ -std=c++17 -Wall -Wextra -Werror tests/touch_editor_test.cpp -o /tmp/selaco-touch-editor
+          /tmp/selaco-touch-editor
+          xcrun --sdk iphoneos clang++ -arch arm64 -miphoneos-version-min=16.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -std=c++17 -fobjc-arc -fsyntax-only -Ioverlays/gzselaco-ios overlays/gzselaco-ios/i_touch_view.mm
           c++ -std=c++17 -Wall -Wextra -Werror -pthread tests/framegen_compare_test.cpp -o /tmp/selaco-compare
           /tmp/selaco-compare
           python3 tests/framegen_composition_contract_test.py
@@ -79,7 +83,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "stable_bundle_identifier=am.arjunkl.selacoios.engineinit.m4"
             echo "stable_files_container=SelacoiOS Engine Init"
-            echo "bundle_version=0.9.7(34)"
+            echo "bundle_version=0.9.7(35)"
             echo "runtime_diagnostic_file=Documents/Selaco/zscript-compile.log"
             echo "diagnostic_scope=30_to_60_admission_editor_and_runtime_receipts"
             echo "job_id_available_after_run=true"
